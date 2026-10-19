@@ -1,8 +1,15 @@
 # Recto · 文档排版插件
 
-用于中英文数学讲义、教材和正式文字材料的排版 skills。给出 Markdown、正文或资料，由 skill 完成排版，交付 **Typst 源文件、PDF 和可编辑 Word**。
+用于课程讲解写作、数学讲义、教材和正式文字材料排版的 skills。给出课件、Markdown、正文或资料，交付 **Typst 源文件和 PDF**；需要时增加可编辑 Word。
 
-可作为 Codex 插件安装，也可单独安装 [Recto skill](skills/recto/SKILL.md)。当前一个 skill、两套风格。生成内容时按需配图和去 AI 腔；转换已有内容时保留原文、公式、标题和编号。开源字体直接随仓库和插件分发；首次使用先检查依赖，缺少时进入独立安装流程，完成后继续排版。
+可作为 Codex 插件安装，也可单独安装 skill。当前两个 skill、两套排版风格。生成内容时按需配图和精简文字；转换已有内容时保留原文、公式、标题和编号。开源字体直接随仓库和插件分发；首次使用先检查依赖，缺少时进入独立安装流程，完成后继续排版。
+
+| Skill | 用途 |
+|---|---|
+| [`recto`](skills/recto/SKILL.md) | 通用成文与排版；已有正文忠实转换为 Typst、PDF，按需输出 Word |
+| [`study-notes`](skills/study-notes/SKILL.md) | 从课件、教材和题解制作适合补课的简洁讲解；按用户主要语言写作，必要时标注材料原词和已明确的考试术语，复用 Recto 排版 |
+
+`study-notes` 负责知识重组、例题取舍和讲解写作，依赖 `recto` 导出；不另建排版引擎。语言规则不限定中英组合，具体字体及书写方向仍须在实际成品中验证。
 
 ## 两套风格预览
 
@@ -36,7 +43,7 @@ codex plugin marketplace add UserUnauthorized/Recto --ref main
 codex plugin add recto@recto
 ```
 
-也可在添加 Marketplace 后，打开／重启 Codex 桌面端，在插件目录选择 **Recto → 安装**。插件里的技能仍叫 `$recto`。运行安装后的设置引导，或直接说：
+也可在添加 Marketplace 后，打开／重启 Codex 桌面端，在插件目录选择 **Recto → 安装**。插件包含 `$recto` 和 `$study-notes`，设置引导仍由 `$recto` 负责。运行安装后的设置引导，或直接说：
 
 ```text
 用 $recto 检查并配置排版环境，缺什么就安装什么。
@@ -67,6 +74,15 @@ python scripts/skills.py install recto --dest "$HOME/.agents/skills"
 ```
 
 上面显式安装到 Codex 的用户技能目录 `~/.agents/skills/recto/`。安装后在 Codex 中提及 `$recto` 即可调用；未出现时重启客户端。技能目录与调用方式见 [OpenAI 官方技能文档](https://learn.chatgpt.com/docs/build-skills)。
+
+需要课程讲解流程时，在已安装 Recto 的同一环境中追加安装：
+
+```sh
+python scripts/skills.py check study-notes
+python scripts/skills.py install study-notes --dest "$HOME/.agents/skills"
+```
+
+更新它时使用相同安装目录并加 `--replace`。单独的 `study-notes-skill.zip` 只包含写作 skill，排版仍依赖 Recto；插件包同时包含两者。
 
 **已有安装时沿用原目录。** 本仓库安装脚本未传 `--dest` 时使用 `$CODEX_HOME/skills`，未设置则使用 `~/.codex/skills`；这是已有本地安装的默认路径。若之前安装在这里，把上面及更新命令的 `--dest` 改为原目录，避免出现两份同名 skill。也可用 `--dest /path/to/skills` 指定其他技能目录。
 
@@ -131,6 +147,16 @@ python skills/recto/scripts/doctor.py --style reference
 导出 Typst、PDF 和 Word。
 ```
 
+**把课件做成适合补课的讲解文档：**
+
+```text
+用 $study-notes 根据第一章 PPT 和题解制作简洁的讲解文档，面向基础不牢的学生。
+按我的主要语言写作；课件语言不同时，给需要掌握的关键词标注原词。
+可以重组内容、精选和改编例题、截取有用的课件图，交付 Typst 和 PDF。
+```
+
+如果已知考试使用另一种语言，可直接补充说明；skill 不会仅凭外语课件猜测考试语言，也不固定页数、例题数或插图数。
+
 **只改指定部分：**
 
 ```text
@@ -187,14 +213,16 @@ dist/             可分发安装包，忽略版本控制
 python scripts/skills.py list
 python scripts/skills.py check
 python scripts/skills.py package recto  # dist/recto-skill.zip
+python scripts/skills.py package study-notes  # dist/study-notes-skill.zip
 python scripts/plugin.py check
 python scripts/plugin.py package       # dist/recto-plugin-0.2.0.zip
 python -m unittest discover -s checks/recto -p 'test_*.py'
+python -m unittest discover -s checks/plugin -p 'test_*.py'
 ```
 
 `check` 只检查元数据、skill 内相对链接和 Python 语法。改动导出脚本、模板或字体后，要运行真实样例并逐页检查受影响格式。精选 README 预览保存在 `docs/recto/previews/`；其余大体积渲染、转换探针与缓存留在 `output/`。必要输入样例、图片和模板随 skill 保留。
 
-- [维护约定](AGENTS.md)与[行为检查场景](checks/recto/scenarios.md)
+- [维护约定](AGENTS.md)、[Recto 行为场景](checks/recto/scenarios.md)与[课程讲解行为场景](checks/study-notes/scenarios.md)
 - [引擎决策](docs/recto/adr/0001-typst-first.md)与[版式参数](skills/recto/references/styles.md)
 - [已完成的导出验证](docs/recto/validation/2026-10-19-exports.md)
 - [原型归档](archive/recto/book-styles/README.md)

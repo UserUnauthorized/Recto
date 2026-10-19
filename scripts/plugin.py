@@ -28,7 +28,9 @@ def metadata_files() -> list[Path]:
     assert entry["source"] == {"source": "local", "path": "./"}
     assert extension["onboardingSkill"] == "./skills/recto/SKILL.md"
 
-    paths = [plugin_path, *check("recto")]
+    paths = [plugin_path]
+    for skill in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        paths.extend(check(skill.parent.name))
     for relative in [extension["onboardingSkill"], interface["composerIcon"], interface["logo"], *interface["screenshots"]]:
         path = (ROOT / relative.removeprefix("./")).resolve()
         assert path.is_relative_to(ROOT.resolve()) and path.is_file(), relative
