@@ -1,2 +1,6 @@
 # Preserve the frozen Matplotlib SVG; its generated path data includes trailing spaces.
 archive/recto/book-styles/assets/approximation.svg -whitespace
+# Keep vendored fonts and upstream licenses byte-for-byte, including line endings.
+skills/recto/assets/fonts/fandol/* -text -whitespace
+skills/recto/assets/fonts/liberation/* -text -whitespace
+skills/recto/assets/fonts/newcm/* -text -whitespace

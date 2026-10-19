@@ -17,7 +17,7 @@ env=os.environ.copy()
 if sys.platform=='darwin':
     # The renderer changes its child HOME to a temporary directory. Use absolute
     # font roots so its bundled LibreOffice still sees installed CJK fonts.
-    dirs=[Path('/System/Library/Fonts'),Path('/System/Library/Fonts/Supplemental'),Path('/Library/Fonts'),Path.home()/'Library/Fonts']
+    dirs=[Path('/System/Library/Fonts'),Path('/System/Library/Fonts/Supplemental'),Path('/Library/Fonts'),Path.home()/'Library/Fonts',Path(__file__).resolve().parents[1]/'assets/fonts']
     conf=out/'fonts.conf'
     conf.write_text('<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd"><fontconfig>'+''.join('<dir>'+escape(str(x))+'</dir>' for x in dirs if x.is_dir())+'<cachedir>'+escape(str(out/'font-cache'))+'</cachedir></fontconfig>')
     env['FONTCONFIG_FILE']=str(conf)

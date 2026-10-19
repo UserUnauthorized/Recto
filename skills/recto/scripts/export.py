@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Export one semantic Markdown source to Recto Typst/PDF/editable Word.
 
-Use the Python returned by Codex's workspace dependency loader. Pandoc >=3.9
-and Typst >=0.15.1 are external executables. No network or automatic installs.
+Run doctor.py first; references/setup.md handles missing dependencies separately.
+Pandoc >=3.9 and Typst >=0.15.1 are external executables. Export runs offline.
 """
 from __future__ import annotations
 
@@ -15,8 +15,17 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from zipfile import ZipFile, ZIP_DEFLATED
+
+from doctor import check, FONT_DIR
+
+try:
+    import docx
+    import lxml.etree
+except (ImportError, OSError) as error:
+    raise SystemExit(f'{error}\nRun scripts/doctor.py, then follow references/setup.md.')
 
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
@@ -31,10 +40,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MATH_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
 NS = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'm': MATH_NS}
 STYLES = {
-    'reference': dict(body='Songti SC', latin='Times New Roman', title='Songti SC',
-                      size=12, title_size=16.5, line=18, margins=(12,12,9.7896,9.7896)),
-    'gbt9704': dict(body='FZFangSong-Z02', latin='FZFangSong-Z02', title='FZXiaoBiaoSong-B05',
-                    size=16, title_size=22, line=29.609, margins=(37,35,28,26)),
+    'reference': dict(size=12, title_size=16.5, line=18, margins=(12,12,9.7896,9.7896)),
+    'gbt9704': dict(size=16, title_size=22, line=29.609, margins=(37,35,28,26)),
 }
 
 
@@ -112,7 +119,7 @@ def make_reference(path, profile):
         p.keep_with_next = False
     for name in ('Title', 'Appendix Title'):
         s = doc.styles[name]
-        font_style(s,cfg['title'],cfg['latin'],cfg['title_size'],course)
+        font_style(s,cfg['title'],cfg['latin'],cfg['title_size'],course or cfg['title_bold'])
         p=s.paragraph_format; p.first_line_indent=Pt(0)
         p.alignment=WD_ALIGN_PARAGRAPH.LEFT if course else WD_ALIGN_PARAGRAPH.CENTER
         p.space_after=Pt(16 if course else cfg['line']); p.keep_with_next=True
@@ -123,7 +130,7 @@ def make_reference(path, profile):
         s.element.get_or_add_pPr().append(borders)
     for level in range(1,5):
         s=doc.styles[f'Heading {level}']
-        east=cfg['body'] if course or level>2 else ('FZHei-B01' if level==1 else 'FZKai-Z03')
+        east=cfg['body'] if course or level>2 else (cfg['hei'] if level==1 else cfg['kai'])
         font_style(s,east,cfg['latin'],13.5 if course else 16,course)
         p=s.paragraph_format; p.keep_with_next=True
         p.space_before=Pt(20 if course else 0); p.space_after=Pt(10 if course else 0)
@@ -135,14 +142,14 @@ def make_reference(path, profile):
         font_style(s,cfg['body'],cfg['latin'],size)
         p=s.paragraph_format; p.first_line_indent=Pt(0); p.line_spacing=Pt(size*1.4)
         p.space_before=Pt(4); p.space_after=Pt(9)
-    s=doc.styles['Appendix Label']; font_style(s,'FZHei-B01',cfg['latin'],16)
+    s=doc.styles['Appendix Label']; font_style(s,cfg['hei'],cfg['latin'],16)
     p=s.paragraph_format; p.first_line_indent=Pt(0); p.space_after=Pt(cfg['line']); p.keep_with_next=True
     for name in ['Verbatim Char','Hyperlink']:
         if name in doc.styles: doc.styles[name].font.color.rgb=RGBColor(0,0,0)
     if not course:
         for name in ['Normal','Body Text','First Paragraph','Compact','Heading 1','Heading 2','Heading 3','Heading 4']:
             doc.styles[name].element.get_or_add_rPr().append(elem('w:spacing',w_val=-5))
-    font_style(doc.styles['Footer'],'Times New Roman' if course else 'SimSun','Times New Roman' if course else 'SimSun',10 if course else 14)
+    font_style(doc.styles['Footer'],cfg['folio'],cfg['folio'],10 if course else 14)
     configure_section(doc.sections[0],profile)
     doc.settings.odd_and_even_pages_header_footer = not course
     for even in ([False] if course else [False,True]):
@@ -158,13 +165,13 @@ def make_reference(path, profile):
         field(p,'PAGE')
         if not course: p.add_run(' —')
         for r in p.runs:
-            r.font.name='Times New Roman' if course else 'SimSun'; r.font.size=Pt(10 if course else 14)
+            r.font.name=cfg['folio']; r.font.size=Pt(10 if course else 14)
     settings=doc.settings.element
     mathpr=settings.find(qn('m:mathPr'))
     if mathpr is None: mathpr=elem('m:mathPr'); settings.append(mathpr)
     old=mathpr.find(qn('m:mathFont'))
     if old is not None: mathpr.remove(old)
-    mathpr.append(elem('m:mathFont',m_val='Cambria Math'))
+    mathpr.append(elem('m:mathFont',m_val=cfg['word_math']))
     settings.append(elem('w:updateFields',w_val='true'))
     doc.save(path)
 
@@ -261,7 +268,7 @@ def polish_docx(path, profile, expected_math, orientation):
                         r.font.size=Pt(size)
                         fonts=r._r.get_or_add_rPr().find(qn('w:rFonts'))
                         if fonts is None: fonts=elem('w:rFonts'); r._r.get_or_add_rPr().append(fonts)
-                        fonts.set(qn('w:eastAsia'),'FZHei-B01' if ri==0 and profile=='gbt9704' else cfg['body'])
+                        fonts.set(qn('w:eastAsia'),cfg['hei'] if ri==0 and profile=='gbt9704' else cfg['body'])
                         r.bold=ri==0 and profile=='reference'
     doc.save(path)
     with ZipFile(path) as z:
@@ -288,11 +295,13 @@ def main():
     formats=set(args.formats.split(','))
     if not formats or formats-{'typ','pdf','docx'}: parser.error('formats must be typ,pdf,docx')
     source=args.source.resolve(); out=args.output.resolve(); out.mkdir(parents=True,exist_ok=True)
-    available=run(['typst','fonts']).decode().splitlines()
-    required=({'Songti SC','Times New Roman','New Computer Modern Math'} if args.style=='reference' else
-              {'FZFangSong-Z02','FZXiaoBiaoSong-B05','FZHei-B01','FZKai-Z03','SimSun'})
-    missing=required-set(available)
-    if missing: raise ValueError('Missing fonts; install locally or choose an explicit substitution: '+', '.join(sorted(missing)))
+    runtime=check(args.style)
+    if not runtime['ready']:
+        raise SystemExit(json.dumps(runtime,ensure_ascii=False,indent=2))
+    fonts=runtime['fonts']
+    STYLES[args.style].update(fonts, title_bold=args.style=='gbt9704' and fonts['title']=='FandolSong')
+    if runtime['substitutions']:
+        print('Font substitutions: '+json.dumps(runtime['substitutions'],ensure_ascii=False),file=sys.stderr)
     ast=json.loads(run(['pandoc',str(source),'-f','markdown','-t','json']))
     images=[]; math_count=0; orientations=['portrait']
     seen_appendix=False
@@ -321,18 +330,22 @@ def main():
             dest.parent.mkdir(exist_ok=True)
             if image!=dest: shutil.copy2(image,dest)
             node['c'][2][0]=str(dest.relative_to(out)); images.append(str(dest.relative_to(out)))
-    ast['meta']['recto-preamble']={'t':'MetaBlocks','c':[{'t':'RawBlock','c':['typst',(ROOT/'assets/styles'/f'{args.style}.typ').read_text()]}]}
+    font_config='#let recto-fonts = ('+', '.join(key+': '+json.dumps(value) for key,value in fonts.items())+')\n'
+    ast['meta']['recto-preamble']={'t':'MetaBlocks','c':[{'t':'RawBlock','c':['typst',font_config+(ROOT/'assets/styles'/f'{args.style}.typ').read_text()]}]}
     if args.style=='reference': ast['meta']['recto-course']={'t':'MetaBool','c':True}
     env=dict(os.environ,RECTO_STYLE=args.style)
     payload=json.dumps(ast).encode()
     common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),'--table-caption-position=below']
     outputs=[]
+    # Only redistributable bundle assets enter delivery archives; never copy system fonts.
+    shutil.copytree(FONT_DIR,out/'fonts',dirs_exist_ok=True)
+    font_files=['fonts/'+p.relative_to(FONT_DIR).as_posix() for p in sorted(FONT_DIR.rglob('*')) if p.is_file()]
     if formats & {'typ','pdf'}:
         target=out/'document.typ'
         run(common+['-t','typst','--standalone','--template',str(ROOT/'assets/document.typst'),'-o',str(target)],input=payload,env=env,cwd=out)
         outputs.append(target.name)
         if 'pdf' in formats:
-            run(['typst','compile',str(target),str(out/'document.pdf')],cwd=out)
+            run(['typst','compile','--font-path',str(out/'fonts'),str(target),str(out/'document.pdf')],cwd=out)
             outputs.append('document.pdf')
     if 'docx' in formats:
         with tempfile.TemporaryDirectory(prefix='recto-word-') as tmp:
@@ -345,12 +358,16 @@ def main():
     for key in ['recto-preamble','recto-course']: normalized['meta'].pop(key,None)
     (out/'content.md').write_bytes(run(['pandoc','-f','json','-t','markdown','--standalone','--wrap=none'],input=json.dumps(normalized).encode()))
     report=dict(style=args.style,source_sha256=sha256(source.read_bytes()).hexdigest(),outputs=outputs,
+                fonts=fonts,font_substitutions=runtime['substitutions'],versions=runtime['versions'],
                 source_math_count=math_count,native_word_math_count=native_math if 'docx' in formats else None,
                 word_visual_qa='pending' if 'docx' in formats else None,
                 word_landscape='native landscape sections; PDF uses GB/T rotated portrait pages' if 'landscape' in orientations else None)
     (out/'export-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+    (out/'REBUILD.txt').write_text('Recompile: typst compile --font-path fonts document.typ\n'
+        'For Word editing, install the bundled fonts on the editing computer.\n'
+        'Fonts selected from your system are not redistributed; see export-report.json.\n')
     with ZipFile(out/'source-and-exports.zip','w',ZIP_DEFLATED) as z:
-        for name in outputs+images+['content.md','export-report.json']: z.write(out/name,name)
+        for name in outputs+images+font_files+['content.md','export-report.json','REBUILD.txt']: z.write(out/name,name)
     print(json.dumps(report,ensure_ascii=False,indent=2))
 
 

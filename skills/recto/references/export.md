@@ -1,6 +1,6 @@
 # 共用源文件与导出
 
-脚本经 Pandoc 3.9.0.2、Typst 0.15.1 验证。Python 需要 python-docx 和 lxml；使用工作区依赖加载器返回的运行时。渲染 DOCX 时使用该运行时的 LibreOffice，不回退到系统桌面版。导出不触网。
+脚本经 Pandoc 3.9.0.2、Typst 0.15.1 验证。Python 需要 python-docx 和 lxml；优先使用工作区依赖加载器返回的运行时。缺项时先走 [依赖检查与安装](setup.md)。渲染 DOCX 优先使用捆绑的 LibreOffice；没有桌面运行时的环境按安装流程准备渲染工具。导出不触网。
 
 ## 输入
 
@@ -60,9 +60,9 @@ $$f(a+h)=f(a)+f'(a)h+o(h).\qquad\text{(1.1)}$$
 "$RECTO_PYTHON" scripts/export.py content.md --style gbt9704 --formats typ,pdf,docx --output result
 ```
 
-`document.typ` 已内嵌样式；有图片时连同 `assets/` 保存。`document.pdf` 是 Typst 编译结果；`document.docx` 含可编辑内容。`content.md` 是资源路径整理后的共同源，`source-and-exports.zip` 包含这些文件。可运行 `typst compile document.typ` 重编译。
+`document.typ` 已内嵌样式与本次字体选择；连同 `fonts/` 和有图片时的 `assets/` 保存。`document.pdf` 是 Typst 编译结果；`document.docx` 含可编辑内容。`content.md` 是资源路径整理后的共同源，`source-and-exports.zip` 包含这些文件、开源字体和许可证。可运行 `typst compile --font-path fonts document.typ` 重编译。本次使用的系统专有字体不随包复制，重编译机器仍需有这些字体；希望全用随包字体时，在检查、导出和重编译命令前设置 `TYPST_IGNORE_SYSTEM_FONTS=true` 与 `TYPST_IGNORE_EMBEDDED_FONTS=true`，并移除自定义 `TYPST_FONT_PATHS`。
 
-`export-report.json` 记录源哈希和数学数量。`word_visual_qa: pending` 表示导出器未执行视觉检查；渲染与检查完成后另存 QA 记录，不把这项自动改成已通过。`native_word_math_count` 仅证明 OMML 数量匹配，不能替代符号或渲染核对。
+`export-report.json` 记录源哈希、引擎版本、配置字体、替代关系和数学数量。`word_visual_qa: pending` 表示导出器未执行视觉检查；渲染与检查完成后另存 QA 记录，不把这项自动改成已通过。`native_word_math_count` 仅证明 OMML 数量匹配，不能替代符号或渲染核对。DOCX 的数学字体设置供编辑器读取，LibreOffice 可能使用自身的数学字体替代，不保证与 Typst 一致。
 
 渲染检查可调用：
 
@@ -70,7 +70,7 @@ $$f(a+h)=f(a)+f'(a)h+o(h).\qquad\text{(1.1)}$$
 "$RECTO_PYTHON" scripts/render_word.py result/document.docx --renderer /absolute/path/to/documents/render_docx.py --output result/qa-word
 ```
 
-在 macOS 上该包装脚本让渲染器显式读取系统与用户字体目录，避免临时 HOME 导致汉字消失或变成方框；不复制或分发字体。随后打开每一张 `page-N.png` 检查。数学对齐标记与上标相邻符号分别经过 OMML 和 Typst 输出修正，仍应重点核对多行推导。
+在 macOS 上该包装脚本让渲染器显式读取系统、用户和随包字体目录，避免临时 HOME 导致汉字消失或变成方框。随后打开每一张 `page-N.png` 检查。数学对齐标记与上标相邻符号分别经过 OMML 和 Typst 输出修正，仍应重点核对多行推导。
 
 ## 经验与限制
 

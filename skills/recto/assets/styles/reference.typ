@@ -1,5 +1,5 @@
 // Shared visual grammar measured from the two user-supplied course handouts.
-// Songti SC and Times New Roman are local fonts; do not redistribute them.
+// Font selection is embedded by the exporter for reproducible source delivery.
 #let reference-layout(body) = {
   set page(
     width: 595pt, height: 842pt,
@@ -7,17 +7,17 @@
     header: none,
     footer-descent: 4mm,
     footer: context align(center)[
-      #text(font: "Times New Roman", size: 10pt, fill: black)[#counter(page).display("1")]
+      #text(font: recto-fonts.folio, size: 10pt, fill: black)[#counter(page).display("1")]
     ],
   )
   set text(
-    font: ((name: "Times New Roman", covers: "latin-in-cjk"), "Songti SC"),
+    font: ((name: recto-fonts.latin, covers: "latin-in-cjk"), recto-fonts.body),
     size: 12pt, fill: black, lang: "zh", region: "CN",
     top-edge: 0.8em, bottom-edge: -0.2em,
     cjk-latin-spacing: auto,
   )
   set par(justify: false, first-line-indent: 0pt, leading: 0.5em, spacing: 9pt)
-  show math.equation: set text(font: ("New Computer Modern Math", "Songti SC"), size: 1.21em)
+  show math.equation: set text(font: (recto-fonts.math, recto-fonts.body), size: 1.21em)
   show math.equation.where(block: true): set block(above: 14pt, below: 14pt)
   show heading.where(level: 2): it => block(above: 20pt, below: 10pt, sticky: true)[
     #line(length: 100%, stroke: 0.5pt)

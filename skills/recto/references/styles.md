@@ -18,6 +18,8 @@ Word 使用 A4 标准尺寸，同等正文尺寸和边距；为了原生分式�
 - 附件另页，首行标签，第三行居中标题，连续页码；源称“附录”时保留原称谓。
 - 横向表格的 PDF 保持纵向 A4，单页表头朝订口、双页朝切口；Word 改用原生横向节以便编辑。
 
-本地字体名称：`FZFangSong-Z02`、`FZXiaoBiaoSong-B05`、`FZHei-B01`、`FZKai-Z03`、`SimSun`。讲义另需 `Songti SC`、`Times New Roman`、`New Computer Modern Math`。字体不可随 skill 默认再分发。更换字体会改变字形与分页，需要复核。
+优先沿用的本地字体：`FZFangSong-Z02`、`FZXiaoBiaoSong-B05`、`FZHei-B01`、`FZKai-Z03`、`SimSun`。讲义使用 `Songti SC`、`Times New Roman`、`New Computer Modern Math`。
+
+缺少时依次使用随包 Fandol 仿宋、宋体粗体标题、黑体、楷体、宋体页码；讲义使用 Fandol 宋体与 Liberation Serif。数学保留原来的 New Computer Modern Math；Word 没有 Cambria Math 时也选用该随包数学字体。替代关系写入导出报告，不是第三套样式。Fandol 宋体粗体不是方正小标宋的相同字形，替代后须复核分页，不能据此声称满足原字体要求。来源与许可证见 [随包字体](../assets/fonts/README.md)。
 
 版式依据：用户提供的 GB/T 9704-2012 PDF；对照条款5.2、5.3、7.3.1、7.3.3、7.3.4、7.3.7、7.5、8.1。此 skill 不生成完整机关公文，也不对 Word 导出作完整国标符合性认证。

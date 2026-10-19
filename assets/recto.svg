@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Recto">
+  <rect width="128" height="128" rx="20" fill="#1F2937"/>
+  <rect x="20" y="24" width="88" height="80" rx="6" fill="#F9FAFB"/>
+  <rect x="30" y="36" width="52" height="5" rx="2.5" fill="#1F2937"/>
+  <rect x="30" y="50" width="68" height="4" rx="2" fill="#9CA3AF"/>
+  <rect x="30" y="62" width="54" height="4" rx="2" fill="#9CA3AF"/>
+  <text x="88" y="86" font-family="Georgia, serif" font-size="26" font-style="italic" fill="#111827">x</text>
+  <path d="M34 82c8-4 13-8 20-8" stroke="#111827" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

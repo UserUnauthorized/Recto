@@ -1,8 +1,8 @@
 // GB/T 9704-2012 body/table/attachment subset, without letterhead or signatures.
-#let body-font = "FZFangSong-Z02"
-#let title-font = "FZXiaoBiaoSong-B05"
-#let hei-font = "FZHei-B01"
-#let kai-font = "FZKai-Z03"
+#let body-font = recto-fonts.body
+#let title-font = recto-fonts.title
+#let hei-font = recto-fonts.hei
+#let kai-font = recto-fonts.kai
 #let body-size = 16pt
 #let body-width = 156mm
 #let body-height = 225mm
@@ -14,7 +14,7 @@
 // Vector rules anchor their upper edges exactly 7mm below the body frame.
 #let page-folio() = context {
   let n = counter(page).get().first()
-  let number = text(font: "SimSun", size: 14pt, tracking: 0pt, top-edge: 0.8em, bottom-edge: -0.2em)[#n]
+  let number = text(font: recto-fonts.folio, size: 14pt, tracking: 0pt, top-edge: 0.8em, bottom-edge: -0.2em)[#n]
   let number-width = measure(number).width
   let rule-width = 14pt
   let gap = 3.5pt
@@ -39,6 +39,7 @@
   set par(justify: true, leading: line-gap, spacing: line-gap,
     first-line-indent: (amount: 2 * char-step, all: true))
   set heading(numbering: none)
+  show math.equation: set text(font: (recto-fonts.math, body-font))
   show heading: it => block(width: 100%, above: line-gap, below: line-gap, sticky: true)[
     #set text(font: if it.level == 1 { hei-font } else if it.level == 2 { kai-font } else { body-font },
       size: body-size, weight: "regular")
@@ -50,7 +51,8 @@
 
 #let document-title(body) = block(width: 100%, above: 0pt, below: line-step, sticky: true)[
   #set par(first-line-indent: 0pt, justify: false, leading: 14pt)
-  #align(center, text(font: title-font, size: 22pt, tracking: 0pt, weight: "regular")[#body])
+  #align(center, text(font: title-font, size: 22pt, tracking: 0pt,
+    weight: if title-font == "FandolSong" { "bold" } else { "regular" })[#body])
 ]
 
 #let attachment-list(titles) = block(above: line-step + line-gap, below: 0pt)[

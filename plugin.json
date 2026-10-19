@@ -1,0 +1,32 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "recto",
+  "version": "0.2.0",
+  "description": "Typeset bilingual mathematical lecture notes, textbooks, and Chinese formal documents into Typst, PDF, and editable Word.",
+  "author": {
+    "name": "UserUnauthorized",
+    "url": "https://github.com/UserUnauthorized/Recto"
+  },
+  "repository": "https://github.com/UserUnauthorized/Recto",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/recto/SKILL.md",
+      "interface": {
+        "displayName": "Recto",
+        "shortDescription": "Bilingual document typesetting",
+        "longDescription": "Typeset bilingual mathematical lecture notes, textbooks, and Chinese formal documents. Recto preserves supplied content while exporting Typst, PDF, and editable Word files.",
+        "developerName": "UserUnauthorized",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://github.com/UserUnauthorized/Recto",
+        "brandColor": "#1F2937",
+        "composerIcon": "./assets/recto.svg",
+        "logo": "./assets/recto.svg",
+        "screenshots": [
+          "./docs/recto/previews/reference.png",
+          "./docs/recto/previews/gbt9704.png"
+        ]
+      }
+    }
+  }
+}
