@@ -17,7 +17,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZipFile
 
 from doctor import check, FONT_DIR
 
@@ -285,6 +285,25 @@ def walk(value):
         for child in value: yield from walk(child)
 
 
+def copy_typst_fonts(families, destination):
+    patterns = {
+        'FandolSong': 'fandol/FandolSong-*.otf',
+        'FandolHei': 'fandol/FandolHei-*.otf',
+        'FandolKai': 'fandol/FandolKai-*.otf',
+        'FandolFang R': 'fandol/FandolFang-*.otf',
+        'Liberation Serif': 'liberation/LiberationSerif-*.ttf',
+        'New Computer Modern Math': 'newcm/NewCMMath-*.otf',
+    }
+    for family in families & patterns.keys():
+        for font in FONT_DIR.glob(patterns[family]):
+            # Keep each selected family intact with its original license and attribution.
+            files = [font, *(p for p in font.parent.iterdir() if p.is_file() and p.suffix not in {'.otf', '.ttf'})]
+            for path in files:
+                target = destination / path.relative_to(FONT_DIR)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source',type=Path)
@@ -303,7 +322,7 @@ def main():
     if runtime['substitutions']:
         print('Font substitutions: '+json.dumps(runtime['substitutions'],ensure_ascii=False),file=sys.stderr)
     ast=json.loads(run(['pandoc',str(source),'-f','markdown','-t','json']))
-    images=[]; math_count=0; orientations=['portrait']
+    math_count=0; orientations=['portrait']
     seen_appendix=False
     top_appendices=0
     for block in ast['blocks']:
@@ -326,10 +345,10 @@ def main():
             if '://' in src or src.startswith('data:'): raise ValueError('Use a local image file, not remote URLs')
             image=(source.parent/src).resolve()
             if not image.is_file(): raise FileNotFoundError(image)
-            dest=out/'assets'/(sha256(image.read_bytes()).hexdigest()[:8]+'-'+image.name)
+            dest=image if image.parent==out/'media' else out/'media'/(sha256(image.read_bytes()).hexdigest()[:8]+'-'+image.name)
             dest.parent.mkdir(exist_ok=True)
             if image!=dest: shutil.copy2(image,dest)
-            node['c'][2][0]=str(dest.relative_to(out)); images.append(str(dest.relative_to(out)))
+            node['c'][2][0]=str(dest.relative_to(out))
     font_config='#let recto-fonts = ('+', '.join(key+': '+json.dumps(value) for key,value in fonts.items())+')\n'
     ast['meta']['recto-preamble']={'t':'MetaBlocks','c':[{'t':'RawBlock','c':['typst',font_config+(ROOT/'assets/styles'/f'{args.style}.typ').read_text()]}]}
     if args.style=='reference': ast['meta']['recto-course']={'t':'MetaBool','c':True}
@@ -337,16 +356,25 @@ def main():
     payload=json.dumps(ast).encode()
     common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),'--table-caption-position=below']
     outputs=[]
-    # Only redistributable bundle assets enter delivery archives; never copy system fonts.
-    shutil.copytree(FONT_DIR,out/'fonts',dirs_exist_ok=True)
-    font_files=['fonts/'+p.relative_to(FONT_DIR).as_posix() for p in sorted(FONT_DIR.rglob('*')) if p.is_file()]
     if formats & {'typ','pdf'}:
-        target=out/'document.typ'
-        run(common+['-t','typst','--standalone','--template',str(ROOT/'assets/document.typst'),'-o',str(target)],input=payload,env=env,cwd=out)
-        outputs.append(target.name)
-        if 'pdf' in formats:
-            run(['typst','compile','--font-path',str(out/'fonts'),str(target),str(out/'document.pdf')],cwd=out)
-            outputs.append('document.pdf')
+        typst_ast=deepcopy(ast)
+        for node in walk(typst_ast):
+            if node.get('t')=='Image': node['c'][2][0]='../'+node['c'][2][0]
+        with tempfile.TemporaryDirectory(prefix='.recto-',dir=out) as temporary:
+            target=Path(temporary)/'document.typ'
+            run(common+['-t','typst','--standalone','--template',str(ROOT/'assets/document.typst'),'-o',str(target)],
+                input=json.dumps(typst_ast).encode(),env=env,cwd=out)
+            if 'pdf' in formats:
+                run(['typst','compile','--root',str(out),'--font-path',str(FONT_DIR),str(target),str(out/'document.pdf')],cwd=out)
+                outputs.append('document.pdf')
+            if 'typ' in formats:
+                typst_dir=out/'typst'; typst_dir.mkdir(exist_ok=True)
+                copy_typst_fonts({name for role,name in fonts.items() if role!='word_math' and (math_count or role!='math')},typst_dir/'fonts')
+                font_arg=' --font-path typst/fonts' if (typst_dir/'fonts').is_dir() else ''
+                target.write_text('// From the delivery folder: typst compile --root .'+font_arg+' typst/document.typ document.pdf\n'
+                                  '// System fonts are not bundled; selected fonts are listed in recto-fonts below.\n'+target.read_text())
+                target.replace(typst_dir/'document.typ')
+                outputs.append('typst/document.typ')
     if 'docx' in formats:
         with tempfile.TemporaryDirectory(prefix='recto-word-') as tmp:
             ref=Path(tmp)/'reference.docx'; make_reference(ref,args.style)
@@ -362,12 +390,6 @@ def main():
                 source_math_count=math_count,native_word_math_count=native_math if 'docx' in formats else None,
                 word_visual_qa='pending' if 'docx' in formats else None,
                 word_landscape='native landscape sections; PDF uses GB/T rotated portrait pages' if 'landscape' in orientations else None)
-    (out/'export-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-    (out/'REBUILD.txt').write_text('Recompile: typst compile --font-path fonts document.typ\n'
-        'For Word editing, install the bundled fonts on the editing computer.\n'
-        'Fonts selected from your system are not redistributed; see export-report.json.\n')
-    with ZipFile(out/'source-and-exports.zip','w',ZIP_DEFLATED) as z:
-        for name in outputs+images+font_files+['content.md','export-report.json','REBUILD.txt']: z.write(out/name,name)
     print(json.dumps(report,ensure_ascii=False,indent=2))
 
 

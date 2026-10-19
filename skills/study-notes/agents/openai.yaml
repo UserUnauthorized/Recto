@@ -1,4 +1,4 @@
 interface:
   display_name: "课程讲解文档"
   short_description: "按用户主要语言重组课件，标注关键原文术语，制作简洁成熟的讲解文档"
-  default_prompt: "用 $study-notes 根据这些课件制作适合补课的简洁讲解文档，按我的主要语言写作，必要时标注原文关键词，交付 Typst 和 PDF。"
+  default_prompt: "用 $study-notes 根据这些课件制作适合补课的简洁讲解文档，按我的主要语言写作，必要时标注原文关键词，交付 Markdown、Typst 和 PDF。"

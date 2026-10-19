@@ -24,7 +24,7 @@ def metadata_files() -> list[Path]:
 
     assert plugin["name"] == entry["name"] == "recto"
     assert marketplace["name"] == "recto"
-    assert plugin["version"] == "0.3.0"
+    assert plugin["version"] == "0.3.1"
     assert entry["source"] == {"source": "local", "path": "./"}
     assert extension["onboardingSkill"] == "./skills/recto/SKILL.md"
 

@@ -60,14 +60,30 @@ $$f(a+h)=f(a)+f'(a)h+o(h).\qquad\text{(1.1)}$$
 "$RECTO_PYTHON" scripts/export.py content.md --style gbt9704 --formats typ,pdf,docx --output result
 ```
 
-`document.typ` 已内嵌样式与本次字体选择；连同 `fonts/` 和有图片时的 `assets/` 保存。`document.pdf` 是 Typst 编译结果；`document.docx` 含可编辑内容。`content.md` 是资源路径整理后的共同源，`source-and-exports.zip` 包含这些文件、开源字体和许可证。可运行 `typst compile --font-path fonts document.typ` 重编译。本次使用的系统专有字体不随包复制，重编译机器仍需有这些字体；希望全用随包字体时，在检查、导出和重编译命令前设置 `TYPST_IGNORE_SYSTEM_FONTS=true` 与 `TYPST_IGNORE_EMBEDDED_FONTS=true`，并移除自定义 `TYPST_FONT_PATHS`。
+默认交付 Markdown、Typst 和 PDF，目录如下：
 
-`export-report.json` 记录源哈希、引擎版本、配置字体、替代关系和数学数量。`word_visual_qa: pending` 表示导出器未执行视觉检查；渲染与检查完成后另存 QA 记录，不把这项自动改成已通过。`native_word_math_count` 仅证明 OMML 数量匹配，不能替代符号或渲染核对。DOCX 的数学字体设置供编辑器读取，LibreOffice 可能使用自身的数学字体替代，不保证与 Typst 一致。
+```text
+result/
+  content.md
+  document.pdf
+  media/                 # 仅有图片时存在；Markdown 与 Typst 共用
+  typst/
+    document.typ
+    fonts/               # 仅本次选用的开源字体族与许可证
+```
+
+`typst/document.typ` 已内嵌样式与本次字体选择；`content.md` 是整理资源路径后的唯一交付正文源。默认不生成 ZIP、`REBUILD.txt`、报告文件或预览目录。要求 Word 时在 `--formats` 中加入 `docx`，根目录增加 `document.docx`。用户明确只要 PDF 时可用 `--formats pdf`，只要 Word 时用 `--formats docx`；它们不保留编译中间稿或字体副本，仍保留 Markdown 与必要图片。
+
+在交付根目录运行 `.typ` 顶部注释中的命令，通常为 `typst compile --root . --font-path typst/fonts typst/document.typ document.pdf`。`--root .` 允许 Typst 读取同级 `media/`；移动整个目录后仍可编译。系统专有字体不复制，重编译机器仍需具备这些字体；希望全用开源字体时，在检查、导出和重编译命令前设置 `TYPST_IGNORE_SYSTEM_FONTS=true` 与 `TYPST_IGNORE_EMBEDDED_FONTS=true`，并移除自定义 `TYPST_FONT_PATHS`。Word 编辑端也须有实际使用的字体。
+
+标准输出中的 JSON 报告记录源哈希、引擎版本、配置字体、替代关系和数学数量，不在交付目录写入 `export-report.json`。需要留存日志或 QA 记录时放到外部工作目录，完成验收后按任务要求清理。`word_visual_qa: pending` 表示导出器未执行视觉检查；`native_word_math_count` 仅证明 OMML 数量匹配，不能替代符号或渲染核对。DOCX 的数学字体设置供编辑器读取，LibreOffice 可能使用自身的数学字体替代，不保证与 Typst 一致。
+
+输出到独立的成品目录；若输入目录中已有同一正文的 Markdown，交付时仅保留需要的那一份并核对图片路径。导出器不推断既有目录中哪些文件可以删除；技能在验收后清理已确认的旧导出与中间文件，不能批量删掉未知用户文件。
 
 渲染检查可调用：
 
 ```sh
-"$RECTO_PYTHON" scripts/render_word.py result/document.docx --renderer /absolute/path/to/documents/render_docx.py --output result/qa-word
+"$RECTO_PYTHON" scripts/render_word.py result/document.docx --renderer /absolute/path/to/documents/render_docx.py --output /absolute/work/qa-word
 ```
 
 在 macOS 上该包装脚本让渲染器显式读取系统、用户和随包字体目录，避免临时 HOME 导致汉字消失或变成方框。随后打开每一张 `page-N.png` 检查。数学对齐标记与上标相邻符号分别经过 OMML 和 Typst 输出修正，仍应重点核对多行推导。

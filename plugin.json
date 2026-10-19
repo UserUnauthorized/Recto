@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "recto",
-  "version": "0.3.0",
-  "description": "Create concise course explanations in the user's language with key source-language terms, and typeset documents into Typst, PDF, and editable Word.",
+  "version": "0.3.1",
+  "description": "Create concise course explanations in the user's language with key source-language terms. Deliver Markdown, Typst, and PDF by default, with editable Word on request.",
   "author": {
     "name": "UserUnauthorized",
     "url": "https://github.com/UserUnauthorized/Recto"
@@ -14,7 +14,7 @@
       "interface": {
         "displayName": "Recto",
         "shortDescription": "Study notes and document typesetting",
-        "longDescription": "Create concise course explanations with study-notes, adapting the main language and key source-language terms to the learner. Use recto to preserve finished content while exporting Typst, PDF, and editable Word files.",
+        "longDescription": "Create concise course explanations with study-notes, adapting the main language and key source-language terms to the learner. Use recto to preserve finished content while delivering Markdown, Typst, and PDF with shared media and only necessary resources. Add editable Word when requested.",
         "developerName": "UserUnauthorized",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
