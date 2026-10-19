@@ -215,7 +215,7 @@ python scripts/skills.py check
 python scripts/skills.py package recto  # dist/recto-skill.zip
 python scripts/skills.py package study-notes  # dist/study-notes-skill.zip
 python scripts/plugin.py check
-python scripts/plugin.py package       # dist/recto-plugin-0.2.0.zip
+python scripts/plugin.py package       # dist/recto-plugin-0.3.0.zip
 python -m unittest discover -s checks/recto -p 'test_*.py'
 python -m unittest discover -s checks/plugin -p 'test_*.py'
 ```
