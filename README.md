@@ -1,6 +1,6 @@
 # Recto · 文档排版插件
 
-用于课程讲解写作、数学讲义、教材和正式文字材料排版的 skills。给出课件、Markdown、正文或资料，交付 **Typst 源文件和 PDF**；需要时增加可编辑 Word。
+用于课程讲解写作、数学讲义、教材和正式文字材料排版的 skills。给出课件、Markdown、正文或资料，默认交付 **Markdown、Typst 和 PDF**；需要时增加可编辑 Word。
 
 可作为 Codex 插件安装，也可单独安装 skill。当前两个 skill、两套排版风格。生成内容时按需配图和精简文字；转换已有内容时保留原文、公式、标题和编号。开源字体直接随仓库和插件分发；首次使用先检查依赖，缺少时进入独立安装流程，完成后继续排版。
 
@@ -164,7 +164,7 @@ python skills/recto/scripts/doctor.py --style reference
 其他部分保持原样，导出 PDF。
 ```
 
-纯转换不启用扩写、补充研究、自动配图或去 AI 腔改写；只有明确要求生成／改写的范围才启用这些步骤。默认交付 `.typ` 和 `.pdf`，要求 Word 时增加 `.docx`。
+纯转换不启用扩写、补充研究、自动配图或去 AI 腔改写；只有明确要求生成／改写的范围才启用这些步骤。默认交付 Markdown、Typst 和 PDF，要求 Word 时增加 `.docx`；用户明确增减格式时遵从。交付目录不默认包含 ZIP、预览、QA 报告或重复源文件。
 
 ### 不通过对话，直接运行样例
 
@@ -184,13 +184,13 @@ python skills/recto/scripts/export.py skills/recto/assets/examples/gbt9704.md \
 
 | 文件 | 作用 |
 |---|---|
-| `document.typ` | 已内嵌样式的 Typst 源文件，可编辑、重新编译 |
+| `typst/document.typ` | 已内嵌样式的 Typst 源文件，顶部注释提供重编译命令 |
 | `document.pdf` | 固定版面的阅读与打印版本 |
 | `document.docx` | 选择 `docx` 时生成；文字、公式和普通表格可编辑 |
-| `content.md`、`assets/` | 整理资源路径后的共同源与所需图片；无图片时没有 `assets/` |
-| `source-and-exports.zip` | 源文件与所选成品的完整包 |
-| `fonts/`、`REBUILD.txt` | 可分发字体、许可证与重编译说明；系统专有字体不随包复制 |
-| `export-report.json` | 源哈希、引擎版本、字体选择、替代关系和数学数量；不代表已完成视觉检查 |
+| `content.md`、`media/` | 唯一交付正文源与所需图片；无图片时没有 `media/`，Typst 共用此目录 |
+| `typst/fonts/` | 本次选用的开源字体族与许可证；不复制整套字库或系统专有字体 |
+
+目录统一使用 `media/`、`typst/` 等英文名。只有用户要求时才另做压缩包。导出报告只输出到终端；预览、QA 和日志保存在交付目录以外，验收后清理本轮中间文件。重新编译时从交付根目录执行 `.typ` 顶部的命令，包含 `--root .` 以读取共享图片。
 
 三种输出共用 Markdown 源，不从 PDF 反转生成 Word。Word 的换行、分页和数学字体可能与 PDF 不同；国标横表在 PDF 中旋转排入纵向纸张，在 Word 中使用横向节。编译后仍需逐页检查；已有 DOCX 样张经 LibreOffice 渲染核验，原生 Microsoft Word 尚未实测。国标风格只覆盖正文相关版式，不是完整机关公文认证。
 
@@ -215,7 +215,7 @@ python scripts/skills.py check
 python scripts/skills.py package recto  # dist/recto-skill.zip
 python scripts/skills.py package study-notes  # dist/study-notes-skill.zip
 python scripts/plugin.py check
-python scripts/plugin.py package       # dist/recto-plugin-0.3.0.zip
+python scripts/plugin.py package       # dist/recto-plugin-0.3.1.zip
 python -m unittest discover -s checks/recto -p 'test_*.py'
 python -m unittest discover -s checks/plugin -p 'test_*.py'
 ```

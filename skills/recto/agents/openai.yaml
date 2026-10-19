@@ -1,4 +1,4 @@
 interface:
   display_name: "Recto 排版"
   short_description: "中英文数学讲义与国标正文排版，导出 Typst、PDF 和可编辑 Word"
-  default_prompt: "用 $recto 忠实排版这份材料，采用清爽课程讲义样式，导出 Typst、PDF 和可编辑 Word。"
+  default_prompt: "用 $recto 忠实排版这份材料，采用清爽课程讲义样式，交付 Markdown、Typst 和 PDF。"
