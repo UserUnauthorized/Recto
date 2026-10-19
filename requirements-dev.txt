@@ -1,0 +1,2 @@
+# Repository management only; each skill documents its runtime dependencies.
+PyYAML>=6,<7

@@ -1,0 +1,15 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Regenerable exports, render caches, test runs and installation backups.
+/output/
+/dist/
+
+# Historical prototype render products; retain its source and design notes.
+/archive/recto/book-styles/.qa/
+/archive/recto/book-styles/previews/
+/archive/recto/book-styles/output/
+/archive/recto/book-styles/index.html

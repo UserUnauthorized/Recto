@@ -1,0 +1,2 @@
+# Preserve the frozen Matplotlib SVG; its generated path data includes trailing spaces.
+archive/recto/book-styles/assets/approximation.svg -whitespace
