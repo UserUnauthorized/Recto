@@ -1,15 +1,15 @@
 # Recto · 文档排版插件
 
-用于课程讲解写作、数学讲义、教材和正式文字材料排版的 skills。给出课件、Markdown、正文或资料，默认交付 **Markdown、Typst 和 PDF**；需要时增加可编辑 Word。
+用于首次学习讲义、考前复习、指定题目讲解，以及教材和正式文字材料排版的 skills。给出课件、Markdown、正文或资料，默认交付 **Markdown、Typst 和 PDF**；需要时增加可编辑 Word。
 
 可作为 Codex 插件安装，也可单独安装 skill。当前两个 skill、两套排版风格。生成内容时按需配图和精简文字；转换已有内容时保留原文、公式、标题和编号。开源字体直接随仓库和插件分发；首次使用先检查依赖，缺少时进入独立安装流程，完成后继续排版。
 
 | Skill | 用途 |
 |---|---|
 | [`recto`](skills/recto/SKILL.md) | 通用成文与排版；已有正文忠实转换为 Typst、PDF，按需输出 Word |
-| [`study-notes`](skills/study-notes/SKILL.md) | 从课件、教材和题解制作适合补课的简洁讲解；按用户主要语言写作，必要时标注材料原词和已明确的考试术语，复用 Recto 排版 |
+| [`study-notes`](skills/study-notes/SKILL.md) | 首次学习讲义、考前复习与指定题目讲解；按基础和范围选择流程，复用 Recto 排版 |
 
-`study-notes` 负责知识重组、例题取舍和讲解写作，依赖 `recto` 导出；不另建排版引擎。语言规则不限定中英组合，具体字体及书写方向仍须在实际成品中验证。
+`study-notes` 负责教学顺序、复习串联与逐题讲解，依赖 `recto` 导出；一个入口按请求选择三个流程，不另建排版引擎。语言规则不限定中英组合，具体字体及书写方向仍须在实际成品中验证。
 
 ## 两套风格预览
 
@@ -157,6 +157,23 @@ python skills/recto/scripts/doctor.py --style reference
 
 如果已知考试使用另一种语言，可直接补充说明；skill 不会仅凭外语课件猜测考试语言，也不固定页数、例题数或插图数。
 
+**第一次学习、考前复习与作业讲解：**
+
+```text
+用 $study-notes 写第七章的首次学习讲义。我完全没学过，只看这份讲义；
+先解释概念和符号，再推导和举例，不能依赖我回看课件。
+
+用 $study-notes 串讲第 3–4 章，明天小测。结合我给出的错题补薄弱点，
+说明知识之间的联系和方法选择，不猜测老师的考试范围。
+
+用 $study-notes 讲截图中打勾的题，只解指定小问。完整保留英文原题、
+公共题组要求和必要图形；中文解释思路，另给简洁但步骤完整的英文考试答案。
+```
+
+首次学习按学习依赖展开；复习按概念联系和已有练习查漏；题目讲解保留题号与原题，完整引用不扩大作答范围。明确要求“只有公式和常数”时生成速查版，不强加例题或讲解。
+
+默认白底黑字／灰度。公式使用 LaTeX 数学语法输入，由 **Typst** 排版，不是 XeLaTeX 编译。正文语言与考试答案语言按本次要求处理，不为所有用户固定中英组合。
+
 **只改指定部分：**
 
 ```text
@@ -215,7 +232,7 @@ python scripts/skills.py check
 python scripts/skills.py package recto  # dist/recto-skill.zip
 python scripts/skills.py package study-notes  # dist/study-notes-skill.zip
 python scripts/plugin.py check
-python scripts/plugin.py package       # dist/recto-plugin-0.3.1.zip
+python scripts/plugin.py package       # dist/recto-plugin-0.4.0.zip
 python -m unittest discover -s checks/recto -p 'test_*.py'
 python -m unittest discover -s checks/plugin -p 'test_*.py'
 ```
