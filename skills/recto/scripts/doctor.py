@@ -161,8 +161,15 @@ def check(style, formats=('tex', 'pdf'), bundled_fonts=False):
         fonts, substitutions = select_fonts(style, available | bundled)
     except ValueError as error:
         issues.append(str(error))
+    word_font_note=None
+    if 'docx' in formats and fonts:
+        word_font_note='DOCX records the configured math font; actual substitution depends on the editor and is not measured by this check.'
+        if fonts['word_math'] not in available:
+            word_font_note+=(f" {fonts['word_math']} was not detected among system fonts; install the bundled font "
+                             'in the target editor. Bundled font files are not embedded in DOCX.')
     return dict(ready=not issues, python=sys.executable, versions=versions, style=style,
                 fonts=fonts, substitutions=substitutions, font_discovery=discovery,
+                word_font_note=word_font_note,
                 issues=issues,
                 setup=str(ROOT / 'references/setup.md'))
 

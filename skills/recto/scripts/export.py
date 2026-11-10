@@ -34,6 +34,7 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.opc.part import XmlPart
 from docx.shared import Mm, Pt, RGBColor
 from lxml import etree
 
@@ -168,25 +169,71 @@ def make_reference(path, profile):
         if not course: p.add_run(' —')
         for r in p.runs:
             r.font.name=cfg['folio']; r.font.size=Pt(10 if course else 14)
-    settings=doc.settings.element
-    mathpr=settings.find(qn('m:mathPr'))
-    if mathpr is None: mathpr=elem('m:mathPr'); settings.append(mathpr)
-    old=mathpr.find(qn('m:mathFont'))
-    if old is not None: mathpr.remove(old)
-    mathpr.append(elem('m:mathFont',m_val=cfg['word_math']))
-    settings.append(elem('w:updateFields',w_val='true'))
+    doc.settings.element.append(elem('w:updateFields',w_val='true'))
     doc.save(path)
+
+
+def align_word_math(root):
+    # Word and LibreOffice disagree on eqArr markers; explicit OMML columns work in both.
+    for array in reversed(root.findall('.//m:eqArr',NS)):
+        rows=[]
+        for argument in array.findall('m:e',NS):
+            cells=[elem('m:e')]
+            for child in list(argument):
+                # Pandoc marks a literal \& with m:sty; a column marker has no rPr.
+                if (child.tag==qn('m:r') and child.find('m:rPr',NS) is None
+                        and child.findtext('m:t',namespaces=NS)=='&'):
+                    cells.append(elem('m:e'))
+                else:
+                    copied=deepcopy(child)
+                    text=copied.find('m:t',NS)
+                    # Preserve explicit math spaces, including a continuation's leading \quad.
+                    if text is not None and text.text and text.text.isspace() and copied.find('m:rPr',NS) is None:
+                        rpr=elem('m:rPr'); rpr.append(elem('m:nor')); copied.insert(0,rpr)
+                        text.set(qn('xml:space'),'preserve')
+                    cells[-1].append(copied)
+            rows.append(cells)
+        columns=max(map(len,rows),default=0)
+        if columns<2: continue
+        matrix=elem('m:m'); props=elem('m:mPr'); matrix.append(props)
+        props.extend([elem('m:plcHide',m_val=1),elem('m:cGpRule',m_val=3),elem('m:cGp',m_val=0)])
+        specs=elem('m:mcs'); props.append(specs)
+        for i in range(columns):
+            column=elem('m:mc'); spec=elem('m:mcPr'); column.append(spec); specs.append(column)
+            spec.extend([elem('m:count',m_val=1),elem('m:mcJc',m_val='right' if i%2==0 else 'left')])
+        for cells in rows:
+            row=elem('m:mr'); matrix.append(row)
+            cells.extend(elem('m:e') for _ in range(columns-len(cells)))
+            for cell in cells:
+                # LibreOffice drops empty math arguments; a normal-text space keeps the cell.
+                if not len(cell):
+                    run=elem('m:r'); rpr=elem('m:rPr'); rpr.append(elem('m:nor')); run.append(rpr)
+                    text=elem('m:t',xml_space='preserve'); text.text=' '; run.append(text); cell.append(run)
+                row.append(cell)
+        array.getparent().replace(array,matrix)
 
 
 def polish_docx(path, profile, expected_math, orientation):
     doc=Document(path); cfg=STYLES[profile]
-    # Pandoc 3.9 emits literal & alignment markers in OMML eqArr rows.
-    # Encode them as native alignment properties; otherwise LO prints ampersands.
-    for marker in doc._element.xpath('//m:eqArr//m:r[m:t="&"]'):
-        rpr=marker.find(qn('m:rPr'))
-        if rpr is None: rpr=elem('m:rPr'); marker.insert(0,rpr)
-        rpr.append(elem('m:aln',m_val='1'))
-        marker.find(qn('m:t')).text=''
+    # Pandoc does not copy mathPr from reference.docx, so set the final document.
+    settings=doc.settings.element
+    mathpr=settings.find(qn('m:mathPr'))
+    if mathpr is None:
+        mathpr=elem('m:mathPr')
+        settings.insert_element_before(mathpr,'w:attachedSchema','w:themeFontLang','w:clrSchemeMapping',
+            'w:doNotIncludeSubdocsInStats','w:doNotAutoCompressPictures','w:forceUpgrade','w:captions',
+            'w:readModeInkLockDown','w:smartTagType','sl:schemaLibrary','w:shapeDefaults',
+            'w:doNotEmbedSmartTags','w:decimalSymbol','w:listSeparator')
+    old=mathpr.find(qn('m:mathFont'))
+    if old is not None: mathpr.remove(old)
+    mathpr.insert(0,elem('m:mathFont',m_val=cfg['word_math']))
+    for part in doc.part.package.parts:
+        if str(part.partname).startswith('/word/') and str(part.partname).endswith('.xml'):
+            root=part.element if isinstance(part,XmlPart) else etree.fromstring(part.blob)
+            if not root.findall('.//m:eqArr',NS): continue
+            align_word_math(root)
+            if not isinstance(part,XmlPart):
+                part._blob=etree.tostring(root,xml_declaration=True,encoding='UTF-8',standalone=True)
     # Native Word sections keep wide tables editable; PDF uses the standard's rotation.
     final=doc._element.body.sectPr
     base=deepcopy(final)
@@ -387,7 +434,6 @@ def main():
             if image!=dest: shutil.copy2(image,dest)
             node['c'][2][0]=str(dest.relative_to(out))
     env=dict(os.environ,RECTO_STYLE=args.style)
-    payload=json.dumps(ast).encode()
     common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),'--table-caption-position=below']
     outputs=[]
     if formats & {'tex','pdf'}:
@@ -395,10 +441,15 @@ def main():
         latex_ast['meta']={key:value for key,value in ast['meta'].items() if key in ('title','subtitle')}
         outputs.extend(export_latex(json.dumps(latex_ast).encode(),common,run,args.style,fonts,out,formats,env))
     if 'docx' in formats:
+        word_ast=deepcopy(ast)
+        for node in walk(word_ast):
+            if node.get('t')=='Math':
+                # Pandoc maps \\square to emoji-capable U+25AB; use the mathematical white square.
+                node['c'][1]=re.sub(r'\\square(?![A-Za-z])','□',node['c'][1])
         with tempfile.TemporaryDirectory(prefix='recto-word-') as tmp:
             ref=Path(tmp)/'reference.docx'; make_reference(ref,args.style)
             target=out/'document.docx'
-            run(common+['-t','docx','--reference-doc',str(ref),'-o',str(target)],input=payload,env=env,cwd=out)
+            run(common+['-t','docx','--reference-doc',str(ref),'-o',str(target)],input=json.dumps(word_ast).encode(),env=env,cwd=out)
             native_math=polish_docx(target,args.style,math_count,orientations)
             outputs.append(target.name)
     normalized=deepcopy(ast)
@@ -407,6 +458,7 @@ def main():
                 bundled_fonts=args.bundled_fonts,
                 template_check=dict(implementation_sha256=implementation_hashes(args.style),files_sha256=delivery_hashes(out,outputs)),
                 fonts=fonts,font_substitutions=runtime['substitutions'],versions=runtime['versions'],
+                word_font_note=runtime['word_font_note'],
                 source_math_count=math_count,native_word_math_count=native_math if 'docx' in formats else None,
                 word_visual_qa='pending' if 'docx' in formats else None,
                 word_landscape='native landscape sections; PDF uses GB/T rotated portrait pages' if 'landscape' in orientations else None)

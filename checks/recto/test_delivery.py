@@ -6,7 +6,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from zipfile import ZipFile
 
+from lxml import etree
 
 ROOT = Path(__file__).resolve().parents[2]
 EXPORT = ROOT / 'skills/recto/scripts/export.py'
@@ -139,6 +141,89 @@ $$\begin{pmatrix}1&0\\0&1\end{pmatrix},\quad\lim_{x\to0}\frac{\sin x}{x}=1$$
             self.assertIn('课堂练习', tex)
             self.assertIn(r'\rectoappendix{复习}{练习 \& 50\%}', tex)
             self.assertNotIn('\ufffd', tex)
+
+    def test_word_export_preserves_math_font_symbols_and_alignment(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary = Path(temporary)
+            source = temporary / 'edge-cases.md'
+            source.write_text(
+                'Proof[^proof]\n\n'
+                '$$\\begin{gathered}\na=b \\\\\ne=f\n\\end{gathered}$$\n\n'
+                '$$\\begin{aligned}\n'
+                'a \\& b &= c & d &= e \\\\\n'
+                'f \\& g &= h & i &= j\n'
+                '\\end{aligned}$$\n\n'
+                '[^proof]: $$\\begin{aligned}\n&\\quad=b \\\\\n&= d\n\\end{aligned}$$ $\\square$\n'
+            )
+            cases = [('reference sample', SOURCE), ('edge cases', source)]
+            math_ns = {'m': 'http://schemas.openxmlformats.org/officeDocument/2006/math'}
+            for name, input_path in cases:
+                with self.subTest(source=name):
+                    out = temporary / f'{name.replace(" ", "-")}-delivery'
+                    result = subprocess.run(
+                        [sys.executable, str(EXPORT), str(input_path), '--style', 'reference',
+                         '--formats', 'docx', '--output', str(out)],
+                        capture_output=True, text=True, timeout=120,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    report = json.loads(result.stdout)
+
+                    with ZipFile(out / 'document.docx') as document:
+                        parts = {}
+                        document_root = None
+                        for member in document.namelist():
+                            if member.startswith('word/') and member.endswith('.xml'):
+                                root = etree.fromstring(document.read(member))
+                                parts[member] = root
+                                if member == 'word/document.xml':
+                                    document_root = root
+                        settings = parts['word/settings.xml']
+                        self.assertEqual(
+                            settings.xpath('string(m:mathPr/m:mathFont/@m:val)', namespaces=math_ns),
+                            report['fonts']['word_math'],
+                        )
+                        all_math_text = ''.join(
+                            text for root in parts.values()
+                            for text in root.xpath('//m:oMath//m:t/text()', namespaces=math_ns)
+                        )
+                        self.assertIn('\u25a1', all_math_text)
+                        self.assertNotIn('\u25ab', all_math_text)
+
+                    if name == 'reference sample':
+                        continue
+                    self.assertIn('a&b', all_math_text)
+                    footnote_root = parts['word/footnotes.xml']
+                    self.assertIn('\u25a1', ''.join(footnote_root.xpath('.//m:t/text()', namespaces=math_ns)))
+                    matrices = document_root.xpath('//m:m', namespaces=math_ns) + \
+                        footnote_root.xpath('//m:m', namespaces=math_ns)
+                    actual_rows = [
+                        [
+                            ''.join(cell.xpath('.//m:t/text()', namespaces=math_ns)).strip(' ')
+                            for cell in row.xpath('./m:e', namespaces=math_ns)
+                        ]
+                        for matrix in matrices
+                        for row in matrix.xpath('./m:mr', namespaces=math_ns)
+                    ]
+                    self.assertEqual(actual_rows, [
+                        ['a=b'], ['e=f'],
+                        ['a&b', '=c', 'd', '=e'],
+                        ['f&g', '=h', 'i', '=j'],
+                        ['', '\u2001=b'], ['', '=d'],
+                    ])
+                    for matrix in matrices[1:]:
+                        justification = matrix.xpath(
+                            './m:mPr/m:mcs/m:mc/m:mcPr/m:mcJc/@m:val', namespaces=math_ns
+                        )
+                        self.assertEqual(justification, ['right', 'left'] * (len(justification) // 2))
+                    for root in (document_root, footnote_root):
+                        for cell in root.xpath('//m:m/m:mr/m:e[not(normalize-space(.))]',
+                                               namespaces=math_ns):
+                            self.assertTrue(cell.xpath('./m:r/m:rPr/m:nor', namespaces=math_ns))
+                    preserved = footnote_root.xpath(
+                        '//m:m/m:mr/m:e/m:r[m:t/text()="\u2001"]', namespaces=math_ns
+                    )
+                    self.assertEqual(len(preserved), 1)
+                    self.assertEqual(preserved[0].xpath('./m:t/@xml:space', namespaces=math_ns), ['preserve'])
 
     def test_bad_math_and_oversize_appendix_do_not_replace_previous_pdf(self):
         cases = [
