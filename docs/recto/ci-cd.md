@@ -1,10 +1,18 @@
 # CI/CD
 
-发布约定见 [标签决定发行版本](adr/0003-tag-driven-releases.md)。工作流为 `.github/workflows/ci.yml`，本地复用入口为 `scripts/ci.py`；打包和发布复用 `scripts/release.py`、`scripts/plugin.py` 与 `scripts/skills.py`。
+发布取舍见 [标签决定发行版本](adr/0003-tag-driven-releases.md)，已完成的验证与待验层次见 [首轮验收](validation/2026-11-11-ci-cd.md)。执行入口为 [工作流](../../.github/workflows/ci.yml)、[本地检查](../../scripts/ci.py)和[打包／发布脚本](../../scripts/release.py)。
+
+## 发布操作与完成条件
+
+1. 确定本次版本和提交：新版本高于已有正式 Release，目标提交已合并到 `main`，且该提交的 CI 成功。
+2. 按 [README 的标签命令](../../README.md#自动发布)推送一个标签，版本替换为本次目标。版本写入和发布交给 Actions，保持标签不变；等本次结束后再发下一个。
+3. 按标签解析后的提交 SHA 核对并等待对应运行。`Full validation` 和 `Publish verified tag` 均成功、正式 Release 包含三个 ZIP 和 `SHA256SUMS`、`main` 的 `plugin.json` 已同步到该版本，才算发布完成。失败时进入下方对应的重跑分支。
+
+只验收 PR 或合并时，完成条件是对应提交的 `Full validation` 成功；`publish` 跳过是预期结果。合并后的 `main` 检查单独确认，不用 PR 的结果代替。
 
 ## 日常检查
 
-PR、`main` 推送和手动运行都在 Ubuntu 24.04 上检查。依赖由 `.github/actions/setup-recto/action.yml` 安装：Python 3.12、经 SHA-256 核对的 Pandoc 3.9.0.2、发行版 LuaLaTeX、中文和日文 TeX 支持、librsvg、Poppler，以及两个 requirements 文件。latexmk 固定为维护者提供的 4.89 归档并核对 SHA-512，因为导出器使用的 hook 接口在 4.84 才公开，不能依赖 Ubuntu 的较旧版本。pip 缓存按 requirements 更新；不依赖开发者机器或私有 documents skill。
+PR、`main` 推送和手动运行共用 Linux 检查。依赖版本与安装命令以 [环境配置](../../.github/actions/setup-recto/action.yml)为准。latexmk 单独安装并验证下载摘要，因为导出器依赖的 hook 接口在 4.84 才公开，不能直接使用 Ubuntu 的较旧版本。CI 使用仓库声明的依赖，不依赖开发者机器或私有 documents skill。
 
 `scripts/ci.py` 依次完成两套样式的依赖检查、两个 skill 与插件的结构检查、全部 Recto／插件／发布测试、三个安装包和校验文件生成。随后在新的消费者目录解压插件，用包内样例与公开入口导出两套样式的 TeX、PDF、DOCX，并复验报告。使用随包字体；缺少 SVG 转换工具会失败，不能把对应测试跳过当成全通过。
 
@@ -23,7 +31,7 @@ python scripts/ci.py --tag v0.5.2
 
 ## 标签发布
 
-仅推送 `vX.Y.Z` 正式标签触发发布；不支持预发布后缀或带前导零的版本。标签必须仍指向本次验证的提交，该提交必须已合并进 `main`，版本不得低于已有正式 Release；相同版本仅用于重跑同一发布。所有发布任务串行，PR／main 上过时的检查可以取消。一次推送一个标签，避免 GitHub 的待运行并发任务替换规则取消中间版本。
+仅推送 `vX.Y.Z` 正式标签触发发布；不支持预发布后缀或带前导零的版本。发布脚本校验标签仍指向本次验证的提交、提交已合并进 `main`、版本没有回退；相同版本仅用于重跑同一发布。所有发布任务串行，但 GitHub 可能替换尚未开始的待运行任务，因此需逐个发布。PR／main 上过时的检查可以取消。
 
 标签会重新执行完整检查。发布 job 只下载同次工作流已验证的安装包，不另行打包。先创建草稿、上传三个 ZIP 和 `SHA256SUMS`，核对远端摘要与大小并下载逐字节比较，最后公开为最新正式 Release。说明由 GitHub 根据变更自动生成，全部检查失败都会阻止新的公开发布。
 
