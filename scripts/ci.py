@@ -37,7 +37,7 @@ def main():
     evidence.mkdir()
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-            output.write(f'bundle={bundle}\nevidence={evidence}\n')
+            output.write(f'bundle={bundle}\nevidence={evidence}\ntag={tag}\n')
     for style in ('reference', 'gbt9704'):
         run(sys.executable, 'skills/recto/scripts/doctor.py', '--style', style,
             '--formats', 'tex,pdf,docx', '--bundled-fonts')

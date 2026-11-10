@@ -8,7 +8,7 @@ PR、`main` 推送和手动运行都在 Ubuntu 24.04 上检查。依赖由 `.git
 
 `scripts/ci.py` 依次完成两套样式的依赖检查、两个 skill 与插件的结构检查、全部 Recto／插件／发布测试、三个安装包和校验文件生成。随后在新的消费者目录解压插件，用包内样例与公开入口导出两套样式的 TeX、PDF、DOCX，并复验报告。使用随包字体；缺少 SVG 转换工具会失败，不能把对应测试跳过当成全通过。
 
-成功安装包保存在 `release-bundle` artifact，消费者 PDF、DOCX 与 JSON 报告保存在 `consumer-exports`，保留 7 天。CI 检查正文转换及结构、编译和交付链路，不等于原生 Word／WPS 的视觉验收。相关排版变更仍按仓库约定进行人工逐页检查。
+成功安装包保存在 `release-bundle` artifact，并用与发布 job 相同的下载 action 取回，复验版本、ZIP 与校验文件，覆盖实际 artifact 传输。消费者 PDF、DOCX 与 JSON 报告保存在 `consumer-exports`，两类 artifact 保留 7 天。CI 检查正文转换及结构、编译和交付链路，不等于原生 Word／WPS 的视觉验收。相关排版变更仍按仓库约定进行人工逐页检查。
 
 备齐依赖后，本地可运行：
 
