@@ -16,6 +16,66 @@ from latex import compile_pdf
 
 
 class DeliveryTests(unittest.TestCase):
+    def test_math_commands_cannot_escape_the_shared_source_boundary(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            secret = directory / 'synthetic-input.tex'
+            secret.write_text('SYNTHETIC REVIEW FIXTURE')
+            source = directory / 'source.md'
+            out = directory / 'delivery'
+            (out / 'latex').mkdir(parents=True)
+            previous = ('document.pdf', 'document.docx', 'content.md', 'latex/document.tex')
+            for name in previous:
+                (out / name).write_bytes(b'previous successful output')
+            read_file = r'\text{\input{' + secret.as_posix() + '}}'
+            cases = [
+                '$' + read_file + '$',
+                r'$\text{\%\input{' + secret.as_posix() + '}}$',
+                "---\ntitle: '$" + read_file + "$'\n---\n\nBody.",
+                r'$\directlua{tex.print(42)}$',
+                r'$\csname input\endcsname{' + secret.as_posix() + '}$',
+                r'$\^^69nput{' + secret.as_posix() + '}$',
+                r'$\begin{filecontents*}{synthetic-output.txt}test\end{filecontents*}$',
+                r'$\newcommand{\readfixture}{' + read_file + r'}\readfixture$',
+                '$\\in\x00put{x}$',
+                '$x\x7f+y$',
+            ]
+            for content in cases:
+                with self.subTest(content=content):
+                    source.write_text(content)
+                    result = subprocess.run(
+                        [sys.executable, str(EXPORT), str(source), '--formats', 'tex',
+                         '--bundled-fonts', '--output', str(out)],
+                        capture_output=True, text=True, timeout=60,
+                    )
+                    self.assertNotEqual(result.returncode, 0, 'Unsafe math was delivered as executable TeX')
+                    self.assertIn('Unsupported math', result.stderr)
+                    for name in previous:
+                        self.assertEqual((out / name).read_bytes(), b'previous successful output', name)
+
+    def test_math_notation_comments_and_literal_percent_still_export(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / 'source.md'
+            source.write_text(r'''$$
+\begin{aligned}
+\text{input 50\%} &= \frac{\alpha}{\sqrt{x}}\\ % \input{not-a-file} is a comment
+\operatorname{rank}(A)	&=n
+\end{aligned}
+$$
+
+$$\begin{pmatrix}1&0\\0&1\end{pmatrix},\quad\lim_{x\to0}\frac{\sin x}{x}=1$$
+''')
+            out = source.parent / 'delivery'
+            result = subprocess.run(
+                [sys.executable, str(EXPORT), str(source), '--formats', 'tex,pdf,docx',
+                 '--bundled-fonts', '--output', str(out)],
+                capture_output=True, text=True, timeout=480,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report['native_word_math_count'], 2)
+            self.assertTrue((out / 'document.pdf').read_bytes().startswith(b'%PDF-'))
+
     def test_latexmk_settles_a_table_of_contents_that_moves_page_references(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -82,7 +142,8 @@ class DeliveryTests(unittest.TestCase):
 
     def test_bad_math_and_oversize_appendix_do_not_replace_previous_pdf(self):
         cases = [
-            ('reference', '$$\\rectoUndefinedMath{x}$$', 'Undefined control sequence'),
+            ('reference', '$$\\rectoUndefinedMath{x}$$', 'Unsupported math command'),
+            ('reference', r'$\text{\input{synthetic-input.tex}}$', 'Unsupported math command'),
             ('gbt9704', '::: {.appendix .landscape title="Overflow"}\n\n'
              + '\n\n'.join('这是必须保留的正文。' for _ in range(30)) + '\n\n:::',
              'Landscape appendix exceeds one page'),

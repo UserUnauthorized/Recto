@@ -20,7 +20,7 @@ import tempfile
 from zipfile import ZipFile
 
 from doctor import check
-from latex import export_latex
+from latex import export_latex, validate_math
 
 try:
     import docx
@@ -305,7 +305,7 @@ def main():
     STYLES[args.style].update(fonts, title_bold=args.style=='gbt9704' and fonts['title']=='FandolSong')
     if runtime['substitutions']:
         print('Font substitutions: '+json.dumps(runtime['substitutions'],ensure_ascii=False),file=sys.stderr)
-    ast=json.loads(run(['pandoc',str(source),'-f','markdown','-t','json']))
+    ast=json.loads(run(['pandoc',str(source),'-f','markdown-latex_macros','-t','json']))
     math_count=0; orientations=['portrait']
     seen_appendix=False
     top_appendices=0
@@ -316,7 +316,9 @@ def main():
     all_appendices=sum(n.get('t')=='Div' and 'appendix' in n['c'][0][1] for n in walk(ast))
     if all_appendices!=top_appendices: raise ValueError('Nested appendix blocks are not supported')
     for node in walk(ast):
-        if node.get('t')=='Math': math_count+=1
+        if node.get('t')=='Math':
+            validate_math(node['c'][1])
+            math_count+=1
         if node.get('t')=='RawBlock' or node.get('t')=='RawInline':
             raise ValueError('Raw markup is not portable. Use semantic Markdown and the documented Divs.')
         if node.get('t')=='Div' and not set(node['c'][0][1]) & {'appendix','pagebreak'}:

@@ -21,6 +21,65 @@ BUNDLED = {
     'New Computer Modern Math': ('newcm', 'NewCMMath-Regular.otf', 'NewCMMath-Bold.otf'),
 }
 
+# Only presentation commands: TeX's file access and macro language are not math input.
+MATH_COMMANDS = set(r'''
+alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa varkappa
+lambda mu nu xi omicron pi varpi rho varrho sigma varsigma tau upsilon phi varphi chi psi omega
+Gamma Delta Theta Lambda Xi Pi Sigma Upsilon Phi Psi Omega
+aleph beth gimel daleth hbar hslash imath jmath ell wp Re Im emptyset varnothing
+nabla partial infty angle measuredangle sphericalangle prime backprime surd top bot
+forall exists nexists neg lnot therefore because ldots cdots vdots ddots dots dotsc dotsb dotsm dotsi dotso
+square Box blacksquare triangle triangledown blacktriangle blacktriangledown diamond lozenge
+pm mp times div cdot ast star circ bullet cap cup uplus sqcap sqcup vee wedge lor land
+setminus smallsetminus wr oplus ominus otimes oslash odot bigcirc amalg dagger ddagger
+le leq leqslant ge geq geqslant ne neq equiv approx sim simeq cong asymp propto
+ll gg lesssim gtrsim lessgtr gtrless prec succ preceq succeq subset supset subseteq supseteq
+subsetneq supsetneq sqsubset sqsupset sqsubseteq sqsupseteq in ni notin owns mid nmid parallel nparallel
+perp models vdash dashv Vdash Vvdash vDash triangleleft triangleright unlhd unrhd bowtie smile frown
+to gets mapsto longmapsto leftarrow rightarrow leftrightarrow longleftarrow longrightarrow longleftrightarrow
+Leftarrow Rightarrow Leftrightarrow Longleftarrow Longrightarrow Longleftrightarrow implies impliedby iff
+uparrow downarrow updownarrow Uparrow Downarrow Updownarrow nearrow searrow swarrow nwarrow
+hookleftarrow hookrightarrow leftharpoonup leftharpoondown rightharpoonup rightharpoondown rightleftharpoons
+sum prod coprod int iint iiint iiiint oint bigcap bigcup bigvee bigwedge biguplus bigoplus bigotimes bigodot
+lim limsup liminf max min sup inf arg det dim gcd hom ker Pr deg exp log ln lg
+sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh coth
+frac dfrac tfrac cfrac binom dbinom tbinom sqrt root of over atop choose
+stackrel overset underset substack boxed underbrace overbrace underline overline
+widehat widetilde overrightarrow overleftarrow overleftrightarrow vec hat bar tilde dot ddot dddot ddddot
+breve check acute grave mathring phantom hphantom vphantom smash
+mathrm mathbf mathit mathsf mathtt mathbb mathcal mathscr mathfrak mathnormal boldsymbol
+symup symit symbf symsf symtt symbb symcal symscr symfrak
+text textrm textsf texttt textnormal textbf textit emph operatorname
+mathop mathbin mathrel mathord mathopen mathclose mathpunct mathinner
+displaystyle textstyle scriptstyle scriptscriptstyle limits nolimits displaylimits
+left right middle big Big bigg Bigg bigl bigr bigm Bigl Bigr Bigm biggl biggr biggm Biggl Biggr Biggm
+langle rangle lvert rvert lVert rVert vert Vert backslash lbrack rbrack lbrace rbrace lfloor rfloor lceil rceil
+quad qquad enspace thinspace medspace thickspace negthinspace negmedspace negthickspace
+bmod pmod mod pod not tag notag nonumber begin end
+'''.split()) | set(' ,;:!{}_%#&$|\\/')
+MATH_ENVIRONMENTS = set('''
+aligned alignedat gathered split matrix pmatrix bmatrix Bmatrix vmatrix Vmatrix smallmatrix cases array
+align align* alignat alignat* gather gather* multline multline* equation equation*
+'''.split())
+
+
+def validate_math(value):
+    if re.search(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', value):
+        raise ValueError('Unsupported math syntax: control characters')
+    # TeX decodes ^^ before tokenization, including immediately after a backslash.
+    if '^^' in value:
+        raise ValueError('Unsupported math syntax: TeX character escapes (^^)')
+    for token in re.finditer(r'%[^\r\n]*|\\([A-Za-z]+|[^A-Za-z])', value):
+        command = token.group(1)
+        if command is None:  # A TeX comment; its commands are never executed.
+            continue
+        if command not in MATH_COMMANDS:
+            raise ValueError(f'Unsupported math command: \\{command}. Use supported mathematical notation.')
+        if command in {'begin', 'end'}:
+            environment = re.match(r'\s*\{([A-Za-z*]+)\}', value[token.end():])
+            if not environment or environment[1] not in MATH_ENVIRONMENTS:
+                raise ValueError('Unsupported math environment: use an explicit math-only environment')
+
 
 def check_svg(path):
     """Copied figures must not lose untracked resources during conversion."""

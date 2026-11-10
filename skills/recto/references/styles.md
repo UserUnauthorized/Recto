@@ -22,4 +22,4 @@ Word 使用 A4 标准尺寸，同等正文尺寸和边距；为了原生分式�
 
 缺少时依次使用随包 Fandol 仿宋、宋体粗体标题、黑体、楷体、宋体页码；讲义使用 Fandol 宋体与 Liberation Serif。数学保留原来的 New Computer Modern Math；Word 没有 Cambria Math 时也选用该随包数学字体。替代关系写入导出报告，不是第三套样式。Fandol 宋体粗体不是方正小标宋的相同字形，替代后须复核分页，不能据此声称满足原字体要求。来源与许可证见 [随包字体](../assets/fonts/README.md)。
 
-版式依据：用户提供的 GB/T 9704-2012 PDF；对照条款5.2、5.3、7.3.1、7.3.3、7.3.4、7.3.7、7.5、8.1。此 skill 不生成完整机关公文，也不对 Word 导出作完整国标符合性认证。LuaLaTeX 迁移决策与已知排版缺陷见仓库 `docs/recto/adr/0002-lualatex.md`。
+版式依据：用户提供的 GB/T 9704-2012 PDF；对照条款5.2、5.3、7.3.1、7.3.3、7.3.4、7.3.7、7.5、8.1。此 skill 不生成完整机关公文，也不对 Word 导出作完整国标符合性认证。Word 的多行公式对齐、数学字体和证明方框仍有已知显示差异，见 [Issue #4](https://github.com/UserUnauthorized/Recto/issues/4)。
