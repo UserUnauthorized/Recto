@@ -91,6 +91,8 @@ latexmk -norc -r latex/latexmkrc -lualatex -interaction=nonstopmode -halt-on-err
 
 标准输出中的 JSON 报告记录源哈希、导出器与模板指纹、请求选项、成品及资源哈希、引擎版本、配置字体、替代关系和数学数量。模板检查先核对生成的 TeX 包含正式样式和字体设置；`--verify-report` 再只读核对记录与当前文件，不需要 Pandoc 或 TeX，不在交付目录新增文件。报告默认不交付，不能鉴别伪造记录或替代视觉 QA。`word_visual_qa: pending` 表示导出器未执行视觉检查；`native_word_math_count` 仅证明 OMML 数量匹配。
 
+`fonts.word_math` 是最终 DOCX 的 `settings.xml` 中配置的数学字体；`font_substitutions` 是导出时的字体选择，不是 Word／LibreOffice 实际使用字体的测量结果。`word_font_note` 说明编辑端可用性：随包字体不会嵌入 DOCX，未在系统字体中检测到时须在目标编辑器安装，实际回退需从渲染结果核对。多行对齐使用无边框的原生 OMML 分列，空列和显式空白保留；`\square` 使用普通空心方框 U+25A1。共同 Markdown 与 LaTeX 源不改写。
+
 输出到独立的成品目录；若输入目录中已有同一正文的 Markdown，交付时仅保留需要的那一份并核对图片路径。导出器不推断既有目录中哪些文件可以删除；技能在验收后清理已确认的旧导出与中间文件，不能批量删掉未知用户文件。
 
 渲染 DOCX 可调用：

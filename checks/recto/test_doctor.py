@@ -49,6 +49,11 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(set(report['versions']), {'pandoc'})
                     self.assertEqual(report['fonts']['body'], 'FandolSong')
                     self.assertEqual(report['substitutions']['Songti SC'], 'FandolSong')
+                    if format_name == 'docx':
+                        self.assertIn('not detected among system fonts', report['word_font_note'])
+                        self.assertIn('not embedded in DOCX', report['word_font_note'])
+                    else:
+                        self.assertIsNone(report['word_font_note'])
                     export = subprocess.run(
                         [sys.executable, str(ROOT / 'skills/recto/scripts/export.py'),
                          str(ROOT / 'skills/recto/assets/examples/reference.md'), '--style', 'reference',
