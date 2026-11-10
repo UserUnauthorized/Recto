@@ -1,0 +1,97 @@
+---
+name: Set up Recto
+description: Install Recto's Linux CI/CD dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python 3.12
+      # actions/setup-python v7.1.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+      with:
+        python-version: '3.12'
+        cache: pip
+        cache-dependency-path: |
+          requirements-dev.txt
+          skills/recto/requirements.txt
+
+    - name: Install Linux system dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          latexmk \
+          librsvg2-bin \
+          lmodern \
+          poppler-utils \
+          unzip \
+          texlive-fonts-recommended \
+          texlive-lang-chinese \
+          texlive-lang-japanese \
+          texlive-latex-extra \
+          texlive-luatex
+
+    - name: Install latexmk 4.89
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=4.89
+        archive=latexmk-489.zip
+        expected_sha512=31e521aa995a70636850ef1c6de295833aa7e0fd0b90958d283eea1bee46208548d9686bec79594cd9e1cd4774bd38e37aaa46496a7646685589c0b45afdded0
+        prefix="${RUNNER_TOOL_CACHE}/latexmk/${version}/x86_64"
+        binary="${prefix}/bin/latexmk"
+
+        if [[ ! -x "$binary" || "$("$binary" --version)" != "Latexmk, John Collins, 8 November 2026. Version ${version}" ]]; then
+          rm -rf "$prefix"
+          mkdir -p "$prefix/bin"
+          curl --fail --location --retry 3 \
+            "https://www.cantab.net/users/johncollins/latexmk/${archive}" \
+            -o "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$expected_sha512" "$RUNNER_TEMP/$archive" | sha512sum --check --strict -
+          unzip -p "$RUNNER_TEMP/$archive" latexmk/latexmk.pl > "$binary"
+          chmod +x "$binary"
+          rm "$RUNNER_TEMP/$archive"
+        fi
+
+        echo "$prefix/bin" >> "$GITHUB_PATH"
+
+    - name: Install Pandoc 3.9.0.2
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=3.9.0.2
+        archive="pandoc-${version}-linux-amd64.tar.gz"
+        expected_sha256=a69abfababda8a56969a254b09f9553a7be89ddec00d4e0fe9fd585d71a67508
+        prefix="${RUNNER_TOOL_CACHE}/pandoc/${version}/x86_64"
+        binary="${prefix}/bin/pandoc"
+
+        if [[ ! -x "$binary" || "$("$binary" --version)" != "pandoc ${version}"* ]]; then
+          rm -rf "$prefix"
+          mkdir -p "$prefix"
+          curl --fail --location --retry 3 \
+            "https://github.com/jgm/pandoc/releases/download/${version}/${archive}" \
+            -o "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$expected_sha256" "$RUNNER_TEMP/$archive" | sha256sum --check --strict -
+          tar --extract --gzip --strip-components=1 --directory="$prefix" \
+            --file="$RUNNER_TEMP/$archive"
+          rm "$RUNNER_TEMP/$archive"
+        fi
+
+        echo "$prefix/bin" >> "$GITHUB_PATH"
+
+    - name: Install Python dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install \
+          -r requirements-dev.txt \
+          -r skills/recto/requirements.txt
+
+    - name: Check Recto dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        hash -r
+        python skills/recto/scripts/doctor.py \
+          --style reference --formats tex,pdf --bundled-fonts

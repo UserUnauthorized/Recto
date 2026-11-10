@@ -233,12 +233,27 @@ python scripts/skills.py check
 python scripts/plugin.py check
 python scripts/skills.py package recto  # dist/recto-skill.zip
 python scripts/skills.py package study-notes  # dist/study-notes-skill.zip
-python scripts/plugin.py package       # dist/recto-plugin-0.5.1.zip
+python scripts/plugin.py package       # dist/recto-plugin-<version>.zip
 python -m unittest discover -s checks/recto -p 'test_*.py'
 python -m unittest discover -s checks/plugin -p 'test_*.py'
 ```
 
 `check` 只检查元数据、skill 内相对链接和 Python 语法。改动导出脚本、模板或字体后，要运行真实样例并逐页检查受影响格式。精选 README 预览保存在 `docs/recto/previews/`；其余大体积渲染、转换探针与缓存留在 `output/`。必要输入样例、图片和模板随 skill 保留。
+
+### 自动发布
+
+PR 和 `main` 推送会运行完整回归、打包及干净消费者导出检查。发布时只需在已合并提交上推送递增的正式版本标签，例如：
+
+```sh
+git switch main
+git pull --ff-only
+git tag v0.5.2
+git push origin v0.5.2
+```
+
+Actions 按标签设置安装包版本，验证通过后生成 Release 说明、发布三个 ZIP 和 `SHA256SUMS`，并自动同步 `main` 的插件版本。无需提前改 `plugin.json` 或创建版本 PR。一次推送一个发布标签，等本次发布结束后再发下一个。
+
+标签保持不变，其源码中的版本号可能仍是上一版；安装请使用正式 ZIP 或同步后的 Marketplace。需要从标签源码复现安装包时运行 `python scripts/release.py build --tag v0.5.2`。Actions 中手动运行工作流可以指定版本演练，但不会发布。失败重跑、环境和验收边界见 [CI/CD](docs/recto/ci-cd.md)。
 
 - [维护约定](AGENTS.md)、[Recto 行为场景](checks/recto/scenarios.md)与[课程讲解行为场景](checks/study-notes/scenarios.md)
 - [LuaLaTeX 决策](docs/recto/adr/0002-lualatex.md)、[Typst 历史决策](docs/recto/adr/0001-typst-first.md)与[版式参数](skills/recto/references/styles.md)
