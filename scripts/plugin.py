@@ -39,9 +39,14 @@ def metadata_files() -> list[Path]:
     return sorted(set(paths))
 
 
-def package() -> Path:
+def package(version: str | None = None) -> Path:
     paths = metadata_files()
-    dest = ROOT / f"dist/recto-plugin-{json.loads((ROOT / 'plugin.json').read_text())['version']}.zip"
+    manifest = json.loads((ROOT / 'plugin.json').read_text())
+    if version is not None:
+        if not re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version):
+            raise ValueError('Expected a stable version: X.Y.Z')
+        manifest['version'] = version
+    dest = ROOT / f"dist/recto-plugin-{manifest['version']}.zip"
     dest.parent.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".plugin-", dir=dest.parent) as temporary:
         archive = Path(temporary) / dest.name
@@ -51,7 +56,10 @@ def package() -> Path:
                 item.compress_type = ZIP_DEFLATED
                 item.create_system = 3
                 item.external_attr = 0o100644 << 16
-                output.writestr(item, path.read_bytes())
+                content = path.read_bytes()
+                if version is not None and path == ROOT / 'plugin.json':
+                    content = (json.dumps(manifest, ensure_ascii=False, indent=2) + '\n').encode()
+                output.writestr(item, content)
         archive.replace(dest)
     return dest
 
@@ -60,12 +68,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     actions = parser.add_subparsers(dest="action", required=True)
     actions.add_parser("check")
-    actions.add_parser("package")
+    actions.add_parser("package").add_argument('--version', help='Release version override; source files stay unchanged')
     args = parser.parse_args()
     if args.action == "check":
         print(f"OK recto plugin: {len(metadata_files())} files; manifests, paths, skill checks")
     else:
-        print(package())
+        print(package(args.version))
     return 0
 
 
