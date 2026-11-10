@@ -128,7 +128,7 @@ def publish(repo, tag, commit, directory):
     names = verify(directory, tag)
     existing = preflight(repo, tag, commit)
     if existing is None:
-        run('gh', 'release', 'create', tag, '--repo', repo, '--verify-tag', '--target', commit,
+        run('gh', 'release', 'create', tag, '--repo', repo, '--verify-tag',
             '--draft', '--title', f'Recto {tag}', '--generate-notes')
     if existing is None or existing['draft']:
         # Only incomplete drafts may be replaced when a failed upload is rerun.
