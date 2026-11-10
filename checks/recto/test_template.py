@@ -14,6 +14,38 @@ EXPORT = ROOT / 'skills/recto/scripts/export.py'
 
 
 class TemplateTests(unittest.TestCase):
+    def test_user_templates_cannot_override_official_styles(self):
+        overrides = '\\geometry{left=50mm,right=50mm}\n\\setmathfont{Latin Modern Math}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'source.md'
+            source.write_text('正文 $x^2$。')
+            data = root / 'data'
+            templates = data / 'pandoc/templates'
+            templates.mkdir(parents=True)
+            original = subprocess.run(['pandoc', '-D', 'latex'], check=True,
+                                      capture_output=True, text=True, timeout=30).stdout
+            (templates / 'default.latex').write_text(
+                original.replace(r'\begin{document}', overrides + r'\begin{document}'))
+            environment = dict(os.environ, XDG_DATA_HOME=str(data), APPDATA=str(data))
+            for style in ('reference', 'gbt9704'):
+                with self.subTest(style=style):
+                    out = root / style
+                    command = [sys.executable, str(EXPORT), str(source), '--style', style,
+                               '--formats', 'tex', '--bundled-fonts', '--output', str(out)]
+                    exported = subprocess.run(command, env=environment, capture_output=True,
+                                              text=True, timeout=60)
+                    self.assertEqual(exported.returncode, 0, exported.stderr)
+                    tex = (out / 'latex/document.tex').read_text()
+                    self.assertIn('正文', tex)
+                    self.assertNotIn(overrides, tex)
+                    report = out / 'report.json'
+                    report.write_text(exported.stdout)
+                    checked = subprocess.run(command + ['--verify-report', str(report)],
+                                             env=environment, capture_output=True, text=True, timeout=30)
+                    self.assertEqual(checked.returncode, 0, checked.stderr)
+                    self.assertTrue(json.loads(checked.stdout)['template_verified'])
+
     def test_missing_official_header_cannot_publish_tex(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

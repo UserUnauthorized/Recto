@@ -188,7 +188,8 @@ def export_latex(payload, common, run, style, fonts, out, formats, env):
         header.write_text((ROOT / 'assets/styles/common.tex').read_text() + ''.join(commands)
                           + (ROOT / f'assets/styles/{style}.tex').read_text())
         target = texdir / 'document.tex'
-        run(common + ['-t', 'latex', '--standalone', '--pdf-engine=lualatex', '--wrap=none',
+        # User Pandoc templates can override the official header after it is included.
+        run(common + ['--data-dir', str(stage), '-t', 'latex', '--standalone', '--pdf-engine=lualatex', '--wrap=none',
                       '-V', 'documentclass=article', '-V', 'fontsize=12pt', '-V', 'indent=true',
                       '-V', 'geometry=margin=12mm', '-H', str(header), '-o', str(target)],
             input=payload, env=env, cwd=stage)
