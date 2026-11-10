@@ -1,0 +1,18 @@
+\geometry{a4paper,left=28mm,right=26mm,top=37mm,bottom=35mm}
+\renewcommand{\normalsize}{\fontsize{16bp}{29.609bp}\selectfont}
+\normalsize
+\setlength{\parindent}{31.57bp}
+\setlength{\parskip}{0bp}
+\ltjsetparameter{kanjiskip=-0.215bp,xkanjiskip=0pt}
+\titleformat{\section}[block]{\normalfont\rectohei\fontsize{16bp}{29.609bp}\selectfont}{}{0pt}{}
+\titleformat{\subsection}[block]{\normalfont\rectokai\fontsize{16bp}{29.609bp}\selectfont}{}{0pt}{}
+\titleformat{\subsubsection}[block]{\normalfont\fontsize{16bp}{29.609bp}\selectfont}{}{0pt}{}
+\titleformat{\paragraph}[block]{\normalfont\fontsize{16bp}{29.609bp}\selectfont}{}{0pt}{}
+\titlespacing{\section}{31.57bp}{0bp}{0bp}
+\titlespacing{\subsection}{31.57bp}{0bp}{0bp}
+\titlespacing{\subsubsection}{31.57bp}{0bp}{0bp}
+\titlespacing{\paragraph}{31.57bp}{0bp}{0bp}
+\newcommand{\rectotitle}[2]{{\centering\rectotitlefont\fontsize{22bp}{36bp}\selectfont #1\par}\vspace{13.609bp}}
+\newcommand{\rectofoliotext}{{\rectofolio\fontsize{14bp}{14bp}\selectfont\rule[3.7bp]{14bp}{0.5bp}\hspace{3.5bp}\thepage\hspace{3.5bp}\rule[3.7bp]{14bp}{0.5bp}}}
+\AddToShipoutPictureFG{\AtPageUpperLeft{\ifodd\value{page}\put(\LenToUnit{\dimexpr184mm-14bp\relax},\LenToUnit{\dimexpr-269mm-4.2bp\relax}){\makebox[0pt][r]{\rectofoliotext}}\else\put(\LenToUnit{\dimexpr28mm+14bp\relax},\LenToUnit{\dimexpr-269mm-4.2bp\relax}){\makebox[0pt][l]{\rectofoliotext}}\fi}}
+\AtBeginDocument{\normalsize}

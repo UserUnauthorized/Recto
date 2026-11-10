@@ -1,0 +1,8 @@
+# Concurrent documents replace these derived font caches; actual font files remain dependencies.
+add_hook('after_xlatex_analysis', sub {
+    my %info = @_;
+    rdb_remove_files($info{rule}, grep {
+        m{(?:^|[/\\])luatexja[/\\]extra_[^/\\]+\.(?:lua\.gz|luc|lub)$}
+    } rdb_get_source($info{rule}));
+    return 0;
+});

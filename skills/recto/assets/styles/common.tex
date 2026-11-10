@@ -1,0 +1,31 @@
+% Shared LuaLaTeX layout; font selection is embedded by the exporter.
+\usepackage[fontset=none,scheme=plain]{ctex}
+\usepackage{titlesec,caption,needspace,graphicx,eso-pic,float,array,longtable,booktabs}
+\floatplacement{figure}{H}
+\captionsetup{labelsep=quad,justification=centering}
+\renewcommand{\figurename}{图}
+\renewcommand{\tablename}{表}
+\setlength{\tabcolsep}{6bp}
+\setlength{\arrayrulewidth}{0.5bp}
+\linespread{1}
+\setcounter{secnumdepth}{-1}
+\setlength{\emergencystretch}{2em}
+\pagestyle{empty}
+\raggedbottom
+\newcommand{\rectolead}{\par\addvspace{10bp}\Needspace{4\baselineskip}}
+\newcommand{\rectoappendix}[2]{\noindent{\rectohei #1}\par\vspace{\dimexpr2\baselineskip-\baselineskip\relax}\rectotitle{#2}{}}
+\newsavebox{\rectorotbox}
+\newenvironment{rectolandscape}{%
+  \clearpage\begin{lrbox}{\rectorotbox}\begin{minipage}{225mm}\setlength{\parindent}{31.57bp}
+}{%
+  \end{minipage}\end{lrbox}%
+  \ifdim\dimexpr\ht\rectorotbox+\dp\rectorotbox\relax>156mm
+    \PackageError{recto}{Landscape appendix exceeds one page}{Split into explicit continuation blocks.}%
+  \fi
+  % Measure natural height first, then keep the fixed frame for both rotation directions.
+  \setbox\rectorotbox=\hbox{\raisebox{\dimexpr156mm-\ht\rectorotbox\relax}[156mm][0pt]{\usebox{\rectorotbox}}}%
+  \AddToShipoutPictureFG*{\AtPageUpperLeft{%
+    \put(\LenToUnit{28mm},\LenToUnit{-37mm}){%
+      \raisebox{-\height}{\ifodd\value{page}\rotatebox{90}{\usebox{\rectorotbox}}\else\rotatebox{-90}{\usebox{\rectorotbox}}\fi}}}}%
+  \null\clearpage
+}

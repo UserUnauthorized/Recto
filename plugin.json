@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "recto",
-  "version": "0.4.0",
-  "description": "Create self-study handouts, exam reviews, and solutions to selected problems in the user's language. Deliver Markdown, Typst, and PDF by default, with editable Word on request.",
+  "version": "0.5.0",
+  "description": "Create self-study handouts, exam reviews, and solutions to selected problems in the user's language. Deliver Markdown, LaTeX, and PDF by default, with editable Word on request.",
   "author": {
     "name": "UserUnauthorized",
     "url": "https://github.com/UserUnauthorized/Recto"
@@ -14,7 +14,7 @@
       "interface": {
         "displayName": "Recto",
         "shortDescription": "Study notes and document typesetting",
-        "longDescription": "Use study-notes for first-time learning, exam review, and selected-problem explanations, adapting the main language and any requested exam answers to the learner. Use recto to preserve finished content while delivering Markdown, Typst, and PDF with shared media and only necessary resources. Add editable Word when requested.",
+        "longDescription": "Use study-notes for first-time learning, exam review, and selected-problem explanations, adapting the main language and any requested exam answers to the learner. Use recto to preserve finished content while delivering Markdown, LaTeX, and PDF with shared media and only necessary resources. Add editable Word when requested.",
         "developerName": "UserUnauthorized",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],

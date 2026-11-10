@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import tempfile
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
@@ -24,7 +25,7 @@ def metadata_files() -> list[Path]:
 
     assert plugin["name"] == entry["name"] == "recto"
     assert marketplace["name"] == "recto"
-    assert plugin["version"] == "0.4.0"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", plugin["version"]), plugin["version"]
     assert entry["source"] == {"source": "local", "path": "./"}
     assert extension["onboardingSkill"] == "./skills/recto/SKILL.md"
 
