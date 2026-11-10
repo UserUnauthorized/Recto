@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "recto",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Create self-study handouts, exam reviews, and solutions to selected problems in the user's language. Deliver Markdown, LaTeX, and PDF by default, with editable Word on request.",
   "author": {
     "name": "UserUnauthorized",
