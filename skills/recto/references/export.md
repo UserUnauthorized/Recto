@@ -59,8 +59,12 @@ SVG 必须自包含：引用旁边文件或外部样式时，先将资源嵌入 
 ## 输出
 
 ```sh
-"$RECTO_PYTHON" scripts/export.py content.md --style gbt9704 --formats tex,pdf,docx --output result
+"$RECTO_PYTHON" "$RECTO_ROOT/scripts/export.py" content.md \
+  --style gbt9704 --formats tex,pdf,docx --output result \
+  > /absolute/qa/export-attempt-1.json
 ```
+
+`RECTO_ROOT` 是当前 Recto `SKILL.md` 所在目录。保存本次 stdout、检查退出码，再按 [导出与验证流程](../SKILL.md#4-导出) 使用同一来源、样式、格式、字体选项及输出目录追加 `--verify-report /absolute/qa/export-attempt-1.json` 复验；失败后仍走正式入口。
 
 默认交付 Markdown、LaTeX 和 PDF：
 
@@ -85,7 +89,7 @@ latexmk -norc -r latex/latexmkrc -lualatex -interaction=nonstopmode -halt-on-err
 
 `latexmk` 会创建并复用 `build/`，负责所需的多次编译；不要手写固定两遍。`-norc` 禁止自动读取环境中的构建配置，`-r` 只载入随源交付的规则，避免并行任务改写 LuaTeX-ja 字体缓存而不断重跑；字体文件本身仍参与依赖检查。导出器内部编译有 480 秒总超时。移动整个交付目录后仍可重建。系统专有字体不复制，重建机器仍需具备这些字体；使用随包字体时源文件通过 `latex/fonts/` 的相对路径直接读取，无需专用字体环境变量。Word 编辑端也须安装实际使用的字体。
 
-标准输出中的 JSON 报告记录源哈希、引擎版本、配置字体、替代关系和数学数量，不在交付目录写入 `export-report.json`。`word_visual_qa: pending` 表示导出器未执行视觉检查；`native_word_math_count` 仅证明 OMML 数量匹配，不能替代符号或渲染核对。
+标准输出中的 JSON 报告记录源哈希、导出器与模板指纹、请求选项、成品及资源哈希、引擎版本、配置字体、替代关系和数学数量。模板检查先核对生成的 TeX 包含正式样式和字体设置；`--verify-report` 再只读核对记录与当前文件，不需要 Pandoc 或 TeX，不在交付目录新增文件。报告默认不交付，不能鉴别伪造记录或替代视觉 QA。`word_visual_qa: pending` 表示导出器未执行视觉检查；`native_word_math_count` 仅证明 OMML 数量匹配。
 
 输出到独立的成品目录；若输入目录中已有同一正文的 Markdown，交付时仅保留需要的那一份并核对图片路径。导出器不推断既有目录中哪些文件可以删除；技能在验收后清理已确认的旧导出与中间文件，不能批量删掉未知用户文件。
 

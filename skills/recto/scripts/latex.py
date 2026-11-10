@@ -188,10 +188,13 @@ def export_latex(payload, common, run, style, fonts, out, formats, env):
         header.write_text((ROOT / 'assets/styles/common.tex').read_text() + ''.join(commands)
                           + (ROOT / f'assets/styles/{style}.tex').read_text())
         target = texdir / 'document.tex'
-        run(common + ['-t', 'latex', '--standalone', '--pdf-engine=lualatex', '--wrap=none',
+        # User Pandoc templates can override the official header after it is included.
+        run(common + ['--data-dir', str(stage), '-t', 'latex', '--standalone', '--pdf-engine=lualatex', '--wrap=none',
                       '-V', 'documentclass=article', '-V', 'fontsize=12pt', '-V', 'indent=true',
                       '-V', 'geometry=margin=12mm', '-H', str(header), '-o', str(target)],
             input=payload, env=env, cwd=stage)
+        if header.read_text().strip() not in target.read_text():
+            raise ValueError('Template verification failed: generated TeX is missing the official style/font header')
         command = 'latexmk -norc -r latex/latexmkrc -lualatex -interaction=nonstopmode -halt-on-error -file-line-error -outdir=build -latexoption=--no-shell-escape -latexoption=--nosocket latex/document.tex'
         target.write_text('% From the delivery root: ' + command + '\n'
                           '% PDF: build/document.pdf. System fonts are not bundled.\n'
