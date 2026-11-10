@@ -287,6 +287,47 @@ def walk(value):
         for child in value: yield from walk(child)
 
 
+def implementation_hashes(style):
+    paths = ['scripts/export.py', 'scripts/latex.py', 'scripts/doctor.py', 'scripts/blocks.lua',
+             'assets/latexmkrc', 'assets/styles/common.tex', f'assets/styles/{style}.tex',
+             'assets/fonts/SHA256SUMS.json']
+    return {name: sha256((ROOT / name).read_bytes()).hexdigest() for name in paths}
+
+
+def delivery_hashes(out, outputs):
+    paths = {out / name for name in ['content.md', *outputs]}
+    folders = [out / 'media']
+    if 'latex/document.tex' in outputs:
+        paths.add(out / 'latex/latexmkrc')
+        folders.append(out / 'latex')
+    for folder in folders:
+        paths.update(path for path in folder.rglob('*') if path.is_file())
+    result = {}
+    for path in sorted(paths):
+        if not path.resolve().is_relative_to(out):
+            raise ValueError(f'Delivery resource escapes output directory: {path}')
+        result[path.relative_to(out).as_posix()] = sha256(path.read_bytes()).hexdigest()
+    return result
+
+
+def verify_report(report, source, out, style, formats, bundled_fonts):
+    outputs = {'latex/document.tex' if name == 'tex' else f'document.{name}' for name in formats}
+    if (report['style'] != style or set(report['outputs']) != outputs
+            or report['bundled_fonts'] != bundled_fonts):
+        raise ValueError('Requested style, formats or font mode differs from export report')
+    proof = report['template_check']
+    if proof['implementation_sha256'] != implementation_hashes(style):
+        raise ValueError('Recto implementation/template changed; rerun the official export')
+    recorded = proof['files_sha256']
+    actual = delivery_hashes(out, sorted(outputs))
+    if recorded != actual:
+        changed = sorted(name for name in set(recorded) | set(actual) if recorded.get(name) != actual.get(name))
+        raise ValueError('Delivery changed or incomplete: ' + ', '.join(changed))
+    # The normalized common source is also valid after moving the delivery folder.
+    if sha256(source.read_bytes()).hexdigest() not in {report['source_sha256'], actual['content.md']}:
+        raise ValueError('Input source differs from the verified export; rerun the official export')
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source',type=Path)
@@ -294,10 +335,20 @@ def main():
     parser.add_argument('--formats',default='tex,pdf')
     parser.add_argument('--bundled-fonts',action='store_true',help='Use only the bundled open-source fonts')
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--verify-report',type=Path,help='Verify a successful export report against this skill and delivery; do not export')
     args=parser.parse_args()
     formats=set(args.formats.split(','))
     if not formats or formats-{'tex','pdf','docx'}: parser.error('formats must be tex,pdf,docx; Typst output was replaced by tex')
-    source=args.source.resolve(); out=args.output.resolve(); out.mkdir(parents=True,exist_ok=True)
+    source=args.source.resolve(); out=args.output.resolve()
+    if args.verify_report:
+        try:
+            verify_report(json.loads(args.verify_report.read_text()),source,out,args.style,formats,args.bundled_fonts)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            raise SystemExit(f'Template verification failed: {error}')
+        print(json.dumps(dict(template_verified=True,style=args.style,outputs=sorted(formats))))
+        return
+    source_digest=sha256(source.read_bytes()).hexdigest()
+    out.mkdir(parents=True,exist_ok=True)
     runtime=check(args.style, formats, bundled_fonts=args.bundled_fonts)
     if not runtime['ready']:
         raise SystemExit(json.dumps(runtime,ensure_ascii=False,indent=2))
@@ -352,7 +403,9 @@ def main():
             outputs.append(target.name)
     normalized=deepcopy(ast)
     (out/'content.md').write_bytes(run(['pandoc','-f','json','-t','markdown','--standalone','--wrap=none'],input=json.dumps(normalized).encode()))
-    report=dict(pdf_engine='lualatex' if 'pdf' in formats else None,style=args.style,source_sha256=sha256(source.read_bytes()).hexdigest(),outputs=outputs,
+    report=dict(pdf_engine='lualatex' if 'pdf' in formats else None,style=args.style,source_sha256=source_digest,outputs=outputs,
+                bundled_fonts=args.bundled_fonts,
+                template_check=dict(implementation_sha256=implementation_hashes(args.style),files_sha256=delivery_hashes(out,outputs)),
                 fonts=fonts,font_substitutions=runtime['substitutions'],versions=runtime['versions'],
                 source_math_count=math_count,native_word_math_count=native_math if 'docx' in formats else None,
                 word_visual_qa='pending' if 'docx' in formats else None,

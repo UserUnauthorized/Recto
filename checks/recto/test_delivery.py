@@ -181,6 +181,26 @@ $$\begin{pmatrix}1&0\\0&1\end{pmatrix},\quad\lim_{x\to0}\frac{\sin x}{x}=1$$
                 expected.update('document.' + f for f in formats.split(',') if f != 'tex')
                 self.assertEqual({p.name for p in out.iterdir()}, expected)
                 self.assertEqual(len(list((out / 'media').iterdir())), 1)
+                receipt = Path(temporary) / 'export.json'
+                receipt.write_text(result.stdout)
+                verify = [sys.executable, str(EXPORT), str(SOURCE), '--formats', formats,
+                          '--output', str(out), '--verify-report', str(receipt)]
+                subprocess.run(verify, check=True, capture_output=True)
+                if 'pdf' in formats:
+                    pdf = out / 'document.pdf'
+                    previous = pdf.read_bytes()
+                    pdf.write_bytes(previous + b'\n% replaced after export\n')
+                    rejected = subprocess.run(verify, capture_output=True, text=True)
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertIn('document.pdf', rejected.stderr)
+                    pdf.write_bytes(previous)
+                media = next((out / 'media').iterdir())
+                previous_media = media.read_bytes()
+                media.write_bytes(previous_media + b'changed resource')
+                rejected = subprocess.run(verify, capture_output=True, text=True)
+                self.assertNotEqual(rejected.returncode, 0)
+                self.assertIn(media.name, rejected.stderr)
+                media.write_bytes(previous_media)
                 if 'tex' in formats:
                     moved = out.with_name('moved delivery')
                     out.rename(moved)
@@ -198,10 +218,14 @@ $$\begin{pmatrix}1&0\\0&1\end{pmatrix},\quad\lim_{x\to0}\frac{\sin x}{x}=1$$
                     self.assertRegex(dependencies, r'\.(?:ttf|otf)"')
                     if not any(f.startswith('Fandol') for f in report['fonts'].values()):
                         self.assertFalse((moved / 'latex/fonts/fandol').exists())
-                    subprocess.run(
+                    refreshed = subprocess.run(
                         [sys.executable, str(EXPORT), str(moved / 'content.md'), '--output', str(moved)],
                         check=True, capture_output=True,
                     )
+                    receipt.write_bytes(refreshed.stdout)
+                    subprocess.run([sys.executable, str(EXPORT), str(moved / 'content.md'),
+                                    '--output', str(moved), '--verify-report', str(receipt)],
+                                   check=True, capture_output=True)
                     self.assertEqual({p.name for p in moved.iterdir()}, expected)
                     self.assertEqual(len(list((moved / 'media').iterdir())), 1)
                 if formats == 'docx':
