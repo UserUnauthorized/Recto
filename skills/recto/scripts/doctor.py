@@ -13,6 +13,22 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 FONT_DIR = ROOT / 'assets/fonts'
+TEX_FILES = (
+    'ctex.sty', 'luatexja.sty', 'fontspec.sty', 'unicode-math.sty',
+    'titlesec.sty', 'caption.sty', 'needspace.sty', 'eso-pic.sty',
+    'float.sty', 'array.sty', 'longtable.sty', 'booktabs.sty',
+    'graphicx.sty', 'geometry.sty', 'hyperref.sty', 'xcolor.sty',
+    'fancyvrb.sty', 'bookmark.sty', 'footnotehyper.sty', 'etoolbox.sty',
+    'lmodern.sty',
+)
+BUNDLED_FONTS = {
+    'FandolSong': 'fandol/FandolSong-*.otf',
+    'FandolHei': 'fandol/FandolHei-*.otf',
+    'FandolKai': 'fandol/FandolKai-*.otf',
+    'FandolFang R': 'fandol/FandolFang-*.otf',
+    'Liberation Serif': 'liberation/LiberationSerif-*.ttf',
+    'New Computer Modern Math': 'newcm/NewCMMath-*.otf',
+}
 ORIGINAL = {
     'reference': dict(body='Songti SC', latin='Times New Roman', title='Songti SC',
                       hei='Songti SC', kai='Songti SC', folio='Times New Roman'),
@@ -41,7 +57,64 @@ def select_fonts(style, available):
     return fonts, substitutions
 
 
-def check(style):
+def command_version(command, minimum=None):
+    executable = shutil.which(command)
+    if not executable:
+        return None, f'{command} not found on PATH'
+    try:
+        result = subprocess.run([executable, '--version'], capture_output=True,
+                                text=True, timeout=15)
+    except subprocess.TimeoutExpired:
+        return None, f'{command} --version timed out'
+    match = re.search(r'\b(\d+\.\d+(?:\.\d+)*(?:\.\d+)?)', result.stdout)
+    if result.returncode or not match:
+        return None, f'Cannot read {command} version: {result.stderr.strip()}'
+    version = match.group(1)
+    if minimum and tuple(map(int, version.split('.'))) < minimum:
+        return None, (f'{command} >={".".join(map(str, minimum))} required; '
+                      f'found {version}')
+    return version, None
+
+
+def system_font_families():
+    fc_list = shutil.which('fc-list')
+    if fc_list:
+        result = None
+        try:
+            result = subprocess.run([fc_list, '--format', '%{family}\n'],
+                                    capture_output=True, text=True, timeout=15)
+        except subprocess.TimeoutExpired:
+            result = None
+        if result is not None and result.returncode == 0 and result.stdout.strip():
+            families = {family.strip() for line in result.stdout.splitlines()
+                        for family in line.split(',') if family.strip()}
+            return families, 'fc-list'
+    system_profiler = shutil.which('system_profiler')
+    if system_profiler:
+        try:
+            result = subprocess.run([system_profiler, 'SPFontsDataType', '-json'],
+                                    capture_output=True, text=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            result = None
+        if result is None:
+            return set(), 'bundled'
+        try:
+            fonts = json.loads(result.stdout).get('SPFontsDataType', [])
+            families = {
+                face['family'] for font in fonts for face in font.get('typefaces', [])
+                if result.returncode == 0 and face.get('family')
+                and face.get('enabled', 'yes') != 'no'
+            }
+            return families, 'system_profiler'
+        except (json.JSONDecodeError, OSError):
+            pass
+    return set(), 'bundled'
+
+
+def check(style, formats=('tex', 'pdf'), bundled_fonts=False):
+    formats = tuple(formats)
+    if set(formats) - {'tex', 'pdf', 'docx'}:
+        raise ValueError('formats must be tex, pdf, or docx')
     issues = []
     versions = {}
     if sys.version_info < (3, 10):
@@ -51,39 +124,56 @@ def check(style):
             importlib.import_module(module)
         except (ImportError, OSError) as error:
             issues.append(f'Python dependency {module}: {error}')
-    for command, minimum in [('pandoc', (3, 9)), ('typst', (0, 15, 1))]:
-        executable = shutil.which(command)
-        if not executable:
-            issues.append(f'{command} not found on PATH')
-            continue
-        result = subprocess.run([executable, '--version'], capture_output=True, text=True)
-        match = re.search(r'\b(\d+\.\d+(?:\.\d+)*(?:\.\d+)?)', result.stdout)
-        if result.returncode or not match:
-            issues.append(f'Cannot read {command} version: {result.stderr.strip()}')
-            continue
-        versions[command] = match.group(1)
-        if tuple(map(int, match.group(1).split('.'))) < minimum:
-            issues.append(f'{command} >={".".join(map(str, minimum))} required; found {match.group(1)}')
-    fonts, substitutions = {}, {}
-    if 'typst' in versions:
-        result = subprocess.run(['typst', 'fonts', '--font-path', str(FONT_DIR)], capture_output=True, text=True)
-        if result.returncode or result.stderr.strip():
-            issues.append('Cannot discover fonts: ' + result.stderr.strip())
+    version, error = command_version('pandoc', (3, 9))
+    if error:
+        issues.append(error)
+    else:
+        versions['pandoc'] = version
+    if 'pdf' in formats:
+        version, error = command_version('lualatex')
+        if error:
+            issues.append(error)
         else:
-            try:
-                fonts, substitutions = select_fonts(style, result.stdout.splitlines())
-            except ValueError as error:
-                issues.append(str(error))
+            versions['lualatex'] = version
+        version, error = command_version('latexmk')
+        if error:
+            issues.append(error)
+        else:
+            versions['latexmk'] = version
+        kpsewhich = shutil.which('kpsewhich')
+        if not kpsewhich:
+            issues.append('kpsewhich not found on PATH')
+        else:
+            for tex_file in TEX_FILES:
+                try:
+                    result = subprocess.run([kpsewhich, tex_file], capture_output=True,
+                                            text=True, timeout=10)
+                except subprocess.TimeoutExpired:
+                    issues.append(f'kpsewhich {tex_file} timed out')
+                else:
+                    if result.returncode or not result.stdout.strip():
+                        issues.append(f'TeX package file not found: {tex_file}')
+    fonts, substitutions = {}, {}
+    bundled = {family for family, pattern in BUNDLED_FONTS.items()
+               if next(FONT_DIR.glob(pattern), None)}
+    available, discovery = (set(), None) if bundled_fonts else system_font_families()
+    try:
+        fonts, substitutions = select_fonts(style, available | bundled)
+    except ValueError as error:
+        issues.append(str(error))
     return dict(ready=not issues, python=sys.executable, versions=versions, style=style,
-                fonts=fonts, substitutions=substitutions, issues=issues,
+                fonts=fonts, substitutions=substitutions, font_discovery=discovery,
+                issues=issues,
                 setup=str(ROOT / 'references/setup.md'))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--style', choices=ORIGINAL, default='reference')
+    parser.add_argument('--formats', default='tex,pdf')
+    parser.add_argument('--bundled-fonts', action='store_true')
     args = parser.parse_args()
-    report = check(args.style)
+    report = check(args.style, tuple(args.formats.split(',')), args.bundled_fonts)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report['ready'] else 1
 

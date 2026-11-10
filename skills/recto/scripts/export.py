@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Export one semantic Markdown source to Recto Typst/PDF/editable Word.
+"""Export one semantic Markdown source to Recto LaTeX/PDF/editable Word.
 
 Run doctor.py first; references/setup.md handles missing dependencies separately.
-Pandoc >=3.9 and Typst >=0.15.1 are external executables. Export runs offline.
+Pandoc >=3.9 and LuaLaTeX are external executables. Export runs offline.
 """
 from __future__ import annotations
 
@@ -19,7 +19,8 @@ import sys
 import tempfile
 from zipfile import ZipFile
 
-from doctor import check, FONT_DIR
+from doctor import check
+from latex import export_latex
 
 try:
     import docx
@@ -50,7 +51,8 @@ def run(args, **kwargs):
     error = result.stderr.decode() if isinstance(result.stderr, bytes) else result.stderr
     if result.returncode or error.strip():
         # Treat converter warnings as failures: missing equations must not silently ship.
-        raise RuntimeError(f'{args[0]} failed or reported diagnostics:\n{error}')
+        details=error or (result.stdout.decode(errors='replace') if isinstance(result.stdout,bytes) else result.stdout)
+        raise RuntimeError(f'{args[0]} failed or reported diagnostics:\n{details}')
     return result.stdout
 
 
@@ -285,36 +287,18 @@ def walk(value):
         for child in value: yield from walk(child)
 
 
-def copy_typst_fonts(families, destination):
-    patterns = {
-        'FandolSong': 'fandol/FandolSong-*.otf',
-        'FandolHei': 'fandol/FandolHei-*.otf',
-        'FandolKai': 'fandol/FandolKai-*.otf',
-        'FandolFang R': 'fandol/FandolFang-*.otf',
-        'Liberation Serif': 'liberation/LiberationSerif-*.ttf',
-        'New Computer Modern Math': 'newcm/NewCMMath-*.otf',
-    }
-    for family in families & patterns.keys():
-        for font in FONT_DIR.glob(patterns[family]):
-            # Keep each selected family intact with its original license and attribution.
-            files = [font, *(p for p in font.parent.iterdir() if p.is_file() and p.suffix not in {'.otf', '.ttf'})]
-            for path in files:
-                target = destination / path.relative_to(FONT_DIR)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(path, target)
-
-
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source',type=Path)
     parser.add_argument('--style',choices=STYLES,default='reference')
-    parser.add_argument('--formats',default='typ,pdf')
+    parser.add_argument('--formats',default='tex,pdf')
+    parser.add_argument('--bundled-fonts',action='store_true',help='Use only the bundled open-source fonts')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
     formats=set(args.formats.split(','))
-    if not formats or formats-{'typ','pdf','docx'}: parser.error('formats must be typ,pdf,docx')
+    if not formats or formats-{'tex','pdf','docx'}: parser.error('formats must be tex,pdf,docx; Typst output was replaced by tex')
     source=args.source.resolve(); out=args.output.resolve(); out.mkdir(parents=True,exist_ok=True)
-    runtime=check(args.style)
+    runtime=check(args.style, formats, bundled_fonts=args.bundled_fonts)
     if not runtime['ready']:
         raise SystemExit(json.dumps(runtime,ensure_ascii=False,indent=2))
     fonts=runtime['fonts']
@@ -349,32 +333,14 @@ def main():
             dest.parent.mkdir(exist_ok=True)
             if image!=dest: shutil.copy2(image,dest)
             node['c'][2][0]=str(dest.relative_to(out))
-    font_config='#let recto-fonts = ('+', '.join(key+': '+json.dumps(value) for key,value in fonts.items())+')\n'
-    ast['meta']['recto-preamble']={'t':'MetaBlocks','c':[{'t':'RawBlock','c':['typst',font_config+(ROOT/'assets/styles'/f'{args.style}.typ').read_text()]}]}
-    if args.style=='reference': ast['meta']['recto-course']={'t':'MetaBool','c':True}
     env=dict(os.environ,RECTO_STYLE=args.style)
     payload=json.dumps(ast).encode()
     common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),'--table-caption-position=below']
     outputs=[]
-    if formats & {'typ','pdf'}:
-        typst_ast=deepcopy(ast)
-        for node in walk(typst_ast):
-            if node.get('t')=='Image': node['c'][2][0]='../'+node['c'][2][0]
-        with tempfile.TemporaryDirectory(prefix='.recto-',dir=out) as temporary:
-            target=Path(temporary)/'document.typ'
-            run(common+['-t','typst','--standalone','--template',str(ROOT/'assets/document.typst'),'-o',str(target)],
-                input=json.dumps(typst_ast).encode(),env=env,cwd=out)
-            if 'pdf' in formats:
-                run(['typst','compile','--root',str(out),'--font-path',str(FONT_DIR),str(target),str(out/'document.pdf')],cwd=out)
-                outputs.append('document.pdf')
-            if 'typ' in formats:
-                typst_dir=out/'typst'; typst_dir.mkdir(exist_ok=True)
-                copy_typst_fonts({name for role,name in fonts.items() if role!='word_math' and (math_count or role!='math')},typst_dir/'fonts')
-                font_arg=' --font-path typst/fonts' if (typst_dir/'fonts').is_dir() else ''
-                target.write_text('// From the delivery folder: typst compile --root .'+font_arg+' typst/document.typ document.pdf\n'
-                                  '// System fonts are not bundled; selected fonts are listed in recto-fonts below.\n'+target.read_text())
-                target.replace(typst_dir/'document.typ')
-                outputs.append('typst/document.typ')
+    if formats & {'tex','pdf'}:
+        latex_ast=deepcopy(ast)
+        latex_ast['meta']={key:value for key,value in ast['meta'].items() if key in ('title','subtitle')}
+        outputs.extend(export_latex(json.dumps(latex_ast).encode(),common,run,args.style,fonts,out,formats,env))
     if 'docx' in formats:
         with tempfile.TemporaryDirectory(prefix='recto-word-') as tmp:
             ref=Path(tmp)/'reference.docx'; make_reference(ref,args.style)
@@ -383,9 +349,8 @@ def main():
             native_math=polish_docx(target,args.style,math_count,orientations)
             outputs.append(target.name)
     normalized=deepcopy(ast)
-    for key in ['recto-preamble','recto-course']: normalized['meta'].pop(key,None)
     (out/'content.md').write_bytes(run(['pandoc','-f','json','-t','markdown','--standalone','--wrap=none'],input=json.dumps(normalized).encode()))
-    report=dict(style=args.style,source_sha256=sha256(source.read_bytes()).hexdigest(),outputs=outputs,
+    report=dict(pdf_engine='lualatex' if 'pdf' in formats else None,style=args.style,source_sha256=sha256(source.read_bytes()).hexdigest(),outputs=outputs,
                 fonts=fonts,font_substitutions=runtime['substitutions'],versions=runtime['versions'],
                 source_math_count=math_count,native_word_math_count=native_math if 'docx' in formats else None,
                 word_visual_qa='pending' if 'docx' in formats else None,

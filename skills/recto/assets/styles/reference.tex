@@ -1,0 +1,18 @@
+\geometry{paperwidth=595bp,paperheight=842bp,left=27.75bp,right=27.75bp,top=12mm,bottom=12mm}
+\renewcommand{\normalsize}{\fontsize{12bp}{18bp}\selectfont}
+\normalsize
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3bp}
+\newcommand{\rectoheadingrule}{\rule{\linewidth}{0.5bp}\par\nobreak\vspace{12bp}\noindent}
+\titleformat{\section}[block]{\normalfont\bfseries\fontsize{13.5bp}{18bp}\selectfont}{}{0pt}{\rectoheadingrule}
+\titlespacing*{\section}{0pt}{20bp}{0bp}
+\titleformat{\subsection}[block]{\normalfont\bfseries\fontsize{13.5bp}{18bp}\selectfont}{}{0pt}{}
+\titleformat{\subsubsection}[block]{\normalfont\bfseries\fontsize{13.5bp}{18bp}\selectfont}{}{0pt}{}
+\titleformat{\paragraph}[block]{\normalfont\bfseries\fontsize{13.5bp}{18bp}\selectfont}{}{0pt}{}
+\DeclareCaptionFont{rectocaption}{\fontsize{10.5bp}{15bp}\selectfont}
+\captionsetup{font=rectocaption,skip=8bp}
+\AtBeginEnvironment{longtable}{\fontsize{10.5bp}{15.75bp}\selectfont}
+\renewcommand{\footnotesize}{\fontsize{9bp}{12bp}\selectfont}
+\newcommand{\rectotitle}[2]{\noindent{\bfseries\fontsize{16.5bp}{22bp}\selectfont #1}\par\vspace{-2bp}\noindent{\bfseries\fontsize{13.5bp}{18bp}\selectfont #2}\par\vspace{1bp}\noindent\rule{\linewidth}{0.5bp}\par\vspace{7bp}}
+\AddToShipoutPictureFG{\AtPageLowerLeft{\put(\LenToUnit{0.5\paperwidth},\LenToUnit{6mm}){\makebox[0pt][c]{\rectofolio\fontsize{10bp}{12bp}\selectfont\thepage}}}}
+\AtBeginDocument{\normalsize\raggedright\setlength{\abovedisplayskip}{8bp}\setlength{\belowdisplayskip}{8bp}\setlength{\abovedisplayshortskip}{8bp}\setlength{\belowdisplayshortskip}{8bp}}
