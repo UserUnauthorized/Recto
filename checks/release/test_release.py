@@ -146,7 +146,10 @@ class ReleaseContractTests(unittest.TestCase):
             if payload is not None:
                 updates.append((path, payload))
                 return {"commit": {"sha": "3" * 40}}
-            return responses[path]
+            response = responses[path]
+            if isinstance(response, Exception):
+                raise response
+            return response
 
         return api, updates
 
@@ -189,9 +192,15 @@ class ReleaseContractTests(unittest.TestCase):
             for name, existing in cases:
                 with self.subTest(name):
                     commands = []
+                    responses = self.responses(draft, existing)
+                    # GitHub's by-tag endpoint only exposes published releases.
+                    responses["repos/owner/repo/releases/tags/v0.6.0"] = subprocess.CalledProcessError(
+                        1, ["gh", "api"], stderr="gh: Not Found (HTTP 404)")
 
                     def run(*args, **kwargs):
                         commands.append(args[:3])
+                        if args[:3] == ("gh", "release", "create"):
+                            responses["repos/owner/repo/releases?per_page=100"] = [[draft]]
                         if args[:3] == ("gh", "release", "download"):
                             output = Path(args[args.index("--dir") + 1])
                             for path in directory.iterdir():
@@ -201,7 +210,7 @@ class ReleaseContractTests(unittest.TestCase):
                             (output / "SHA256SUMS").write_text((output / "SHA256SUMS").read_text().replace(checksum, tampered, 1))
                         return ""
 
-                    api, updates = self.api_router(self.responses(draft, existing))
+                    api, updates = self.api_router(responses)
                     environment = {"TMPDIR": str(ROOT / "output")}
                     with mock.patch.object(release, "api", api), mock.patch.object(release, "run", run):
                         with mock.patch.dict(release.os.environ, environment), self.assertRaisesRegex(ValueError, "Checksum mismatch: recto-plugin-0.6.0.zip"):

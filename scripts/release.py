@@ -134,7 +134,10 @@ def publish(repo, tag, commit, directory):
         # Only incomplete drafts may be replaced when a failed upload is rerun.
         run('gh', 'release', 'upload', tag, *(str(directory / name) for name in names),
             '--repo', repo, '--clobber')
-    release = api(f'repos/{repo}/releases/tags/{tag}')
+    # The by-tag endpoint excludes drafts; preflight's release list includes them.
+    release = preflight(repo, tag, commit)
+    if release is None:
+        raise ValueError('Release is not visible after uploading its assets')
     verify_remote(release, directory, names)
     with tempfile.TemporaryDirectory(prefix='recto-release-download-') as temporary:
         downloaded = Path(temporary)
