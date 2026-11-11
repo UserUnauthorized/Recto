@@ -17,7 +17,7 @@
 1. **Python**：有 Codex 捆绑运行时就复用。没有可用 Python 时，使用现有系统包管理器安装 Python 3.10+；没有包管理器时，按 [Python 官方安装说明](https://www.python.org/downloads/) 完成后继续。
 2. **Pandoc**：要求 ≥3.9。macOS 已有 Homebrew 时仅安装缺少的 `pandoc`，过旧的使用 `brew upgrade`。其他系统按 [Pandoc 安装说明](https://pandoc.org/installing.html)安装官方版本，并让当前进程的 PATH 包含其目录。
 3. **TeX / latexmk**：PDF 需要 LuaLaTeX（建议 TeX Live 2024+）和 `latexmk`。优先用已安装的 TeX Live/MacTeX 管理器安装 `latexmk` 及缺失宏包；`latexmk` 依赖 Perl，macOS/Unix 通常已具备，Windows 通常随 Strawberry Perl 提供。TeX Live 的非重定位安装不能用 `tlmgr --usermode` 安装 `latexmk`。安装后确认 `lualatex`、`latexmk`、`kpsewhich` 都在 PATH。
-4. **TeX 包**：需要 `ctex luatexja lualatex-math fontspec unicode-math titlesec caption needspace eso-pic float tools booktabs graphics geometry hyperref xcolor fancyvrb bookmark footnotehyper etoolbox microtype lm`。doctor 用 `kpsewhich` 逐项探测；安装报告中的具体缺项后重跑同一 doctor 命令。只有 LaTeX 格式与宏包版本不匹配时才重建对应格式（例如 `fmtutil-user --byfmt lualatex`）；字体缓存问题另按 luaotfload 诊断处理，不作为例行操作。
+4. **TeX 包**：需要 `ctex luatexja lualatex-math fontspec unicode-math titlesec caption needspace eso-pic float tools booktabs graphics geometry hyperref xcolor fancyvrb fvextra framed bookmark footnotehyper etoolbox microtype lm`。`fvextra` 要求 ≥1.5（2022-11-30），负责代码长行换行，`framed` 提供可跨页的浅底代码块；不需要 Python 高亮器或 shell escape。doctor 用 `kpsewhich` 逐项探测；安装报告中的具体缺项后重跑同一 doctor 命令。只有 LaTeX 格式与宏包版本不匹配时才重建对应格式（例如 `fmtutil-user --byfmt lualatex`）；字体缓存问题另按 luaotfload 诊断处理，不作为例行操作。
 5. **Python 包**：若现有运行时缺少 `python-docx` 或 `lxml`，新建专属虚拟环境，随后一直用其 Python 检查和导出，不修改 Codex 的捆绑运行时。macOS／Linux 示例：
 
    ```sh
@@ -29,7 +29,7 @@
    已有这个环境时直接复用；升级只补缺项。Windows 可在 `%LOCALAPPDATA%\Recto\venv` 建环境，解释器在 `Scripts\python.exe`。
 
 6. **可选 SVG 转换**：仅当输入 SVG 时需要 `rsvg-convert`（librsvg）。PNG/JPEG/PDF 输入和仅 Word 导出不需要它；生成含 SVG 的 TeX 源也需要转换该图像资源。缺少命令时按安装提示处理，或改供 PNG/PDF。
-7. **字体**：有原字体就沿用；缺少时使用 Fandol、Liberation Serif 和 New Computer Modern Math。LuaLaTeX 直接读取随包 `assets/fonts/`。Word 编辑需要让编辑器找到这些字体：macOS 把随包 `.otf`／`.ttf` 复制到 `~/Library/Fonts/Recto/`，Linux 复制到 `~/.local/share/fonts/Recto/` 后运行 `fc-cache -f`；Windows 使用系统“为当前用户安装”字体。保留许可证，遇到同名不同内容的现有文件先保留旧副本，不直接覆盖。重启已打开的 Word／LibreOffice。不要复制或发布用户系统中的专有字体。
+7. **字体**：有原字体就沿用；缺少时使用 Fandol、Liberation Serif 和 New Computer Modern Math。代码使用随包 Liberation Mono 与 Fandol 仿宋。LuaLaTeX 直接读取随包 `assets/fonts/`。Word 编辑需要让编辑器找到这些字体：macOS 把随包 `.otf`／`.ttf` 复制到 `~/Library/Fonts/Recto/`，Linux 复制到 `~/.local/share/fonts/Recto/` 后运行 `fc-cache -f`；Windows 使用系统“为当前用户安装”字体。保留许可证，遇到同名不同内容的现有文件先保留旧副本，不直接覆盖。重启已打开的 Word／LibreOffice。不要复制或发布用户系统中的专有字体。
 
 ## 复查与返回
 

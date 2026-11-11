@@ -18,6 +18,73 @@ from latex import compile_pdf
 
 
 class DeliveryTests(unittest.TestCase):
+    def test_code_and_citations_survive_pdf_and_word_export(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            source = directory / 'technical.md'
+            content = (ROOT / 'skills/recto/assets/examples/technical.md').read_text()
+            stress = ('```python\ntab_value = "left\tright"\nendpoint = "https://example.com/' + 'part_' * 40 + '"\n'
+                      + '\n'.join(f'print("row_{i:03d}", "中文保留")' for i in range(70)) + '\n```\n\n')
+            source.write_text(content.replace('::: pagebreak', stress + '::: pagebreak'))
+            ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+            for style in ('reference', 'gbt9704'):
+                with self.subTest(style=style):
+                    out = directory / style
+                    result = subprocess.run(
+                        [sys.executable, str(EXPORT), str(source), '--style', style,
+                         '--formats', 'tex,pdf,docx', '--bundled-fonts', '--output', str(out)],
+                        capture_output=True, text=True, timeout=480,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    pdf_text = subprocess.check_output(
+                        ['pdftotext', '-layout', str(out / 'document.pdf'), '-'], text=True)
+                    for value in ('关闭遥测', '中文保留', '354', '356',
+                                  r'\input{not-a-file}', '^^41'):
+                        self.assertIn(value, pdf_text)
+                    self.assertIn('50%', ''.join(pdf_text.split()))
+                    self.assertIn('"enabled":false', ''.join(pdf_text.split()))
+                    self.assertNotIn('⌋', pdf_text, 'Visual wrap markers must not become code characters')
+                    for i in range(70):
+                        self.assertIn(f'row_{i:03d}', pdf_text)
+                    pdf_xml = etree.fromstring(subprocess.check_output(
+                        ['pdftohtml', '-xml', '-stdout', str(out / 'document.pdf')]))
+                    pages = pdf_xml.findall('page')
+                    self.assertGreater(len(pages), 2)
+                    links = pdf_xml.findall('.//a')
+                    self.assertTrue(any(a.get('href') == 'https://pandoc.org/MANUAL.html' for a in links))
+                    citations = [a for a in links if 'S1' in ''.join(a.itertext())]
+                    self.assertTrue(citations)
+                    for link in citations:
+                        page = int(link.get('href').rsplit('#', 1)[1])
+                        self.assertIn('示例文件', ''.join(pages[page - 1].itertext()))
+                    with ZipFile(out / 'document.docx') as archive:
+                        document = etree.fromstring(archive.read('word/document.xml'))
+                        styles = etree.fromstring(archive.read('word/styles.xml'))
+                        bookmarks = document.xpath('//w:bookmarkStart/@w:name', namespaces=ns)
+                        anchors = document.xpath('//w:hyperlink/@w:anchor', namespaces=ns)
+                        self.assertGreaterEqual(len(anchors), 3)
+                        self.assertTrue(set(anchors) <= set(bookmarks))
+                        text = ''.join(document.xpath('//w:t/text()', namespaces=ns))
+                        for value in ('354  def snapshot(users):', '355      # 保留中文',
+                                      '356      return', 'row_000', 'row_069', r'\input{not-a-file}'):
+                            self.assertIn(value, text)
+                        for name in ('VerbatimChar', 'SourceCode'):
+                            fonts = styles.xpath(f'//w:style[@w:styleId="{name}"]/w:rPr/w:rFonts', namespaces=ns)
+                            self.assertEqual(fonts[0].get(f'{{{ns["w"]}}}ascii'), 'Liberation Mono')
+                            self.assertEqual(fonts[0].get(f'{{{ns["w"]}}}eastAsia'), 'FandolFang R')
+                        self.assertEqual(styles.xpath('//w:style[@w:styleId="SourceCode"]/w:pPr/w:jc/@w:val', namespaces=ns), ['left'])
+                    normalized = (out / 'content.md').read_text()
+                    self.assertIn('def snapshot(users):', normalized)
+                    self.assertNotIn('354  def', normalized, 'Display line numbers must not change the common source')
+                    self.assertIn('left\tright', normalized)
+
+            source.write_text('```{.python .numberLines startFrom="invalid"}\nprint(1)\n```')
+            result = subprocess.run(
+                [sys.executable, str(EXPORT), str(source), '--formats', 'docx',
+                 '--bundled-fonts', '--output', str(directory / 'invalid')], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('startFrom must be a positive integer', result.stderr)
+
     def test_math_commands_cannot_escape_the_shared_source_boundary(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

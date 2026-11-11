@@ -8,6 +8,28 @@ end
 local function text(value)
   return latex({pandoc.Plain({pandoc.Str(value)})}):gsub('[ \t\r\n]+$', '')
 end
+function Code(el)
+  if FORMAT ~= 'latex' then return nil end
+  -- EscVerb keeps code literal even inside headings and permits long tokens to wrap.
+  return pandoc.RawInline('latex', '\\EscVerb{' .. el.text:gsub('([%p ])', '\\%1') .. '}')
+end
+function CodeBlock(el)
+  if has(el, 'numberLines') or has(el, 'number-lines') then
+    local first = tonumber(el.attributes.startFrom or '1')
+    if not first or first < 1 or first ~= math.floor(first) then error('Code startFrom must be a positive integer') end
+    if FORMAT == 'docx' then
+      -- Pandoc's DOCX writer omits line numbers; number the display copy only.
+      local lines = pandoc.List()
+      for line in (el.text .. '\n'):gmatch('(.-)\n') do lines:insert(line) end
+      local width = #tostring(first + #lines - 1)
+      for i, line in ipairs(lines) do lines[i] = string.format('%' .. width .. 'd  %s', first + i - 1, line) end
+      el.text = table.concat(lines, '\n')
+    end
+  end
+  -- Plain and unknown languages still need the safe, wrapping Highlighting environment.
+  el.classes:insert('text')
+  return el
+end
 local function gbt_table(el, landscape)
   -- shortcut: merged cells are rejected; extend only with a cross-format fixture.
   local rows = pandoc.List()

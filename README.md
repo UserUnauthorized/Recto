@@ -1,6 +1,6 @@
 # Recto · 文档排版插件
 
-用于首次学习讲义、考前复习、指定题目讲解，以及教材和正式文字材料排版的 skills。给出课件、Markdown、正文或资料，默认交付 **Markdown、LaTeX 和 PDF**；需要时增加可编辑 Word。
+用于首次学习讲义、考前复习、指定题目讲解，以及教材、技术报告和正式文字材料排版的 skills。给出课件、Markdown、正文或资料，默认交付 **Markdown、LaTeX 和 PDF**；需要时增加可编辑 Word。
 
 可作为 Codex 插件安装，也可单独安装 skill。当前两个 skill、两套排版风格。生成内容时按需配图和精简文字；转换已有内容时保留原文、公式、标题和编号。开源字体直接随仓库和插件分发；首次使用先检查依赖，缺少时进入独立安装流程，完成后继续排版。
 
@@ -116,8 +116,9 @@ python skills/recto/scripts/doctor.py --style reference --formats tex,pdf,docx
 | 国标正文／一级／二级标题 | 方正仿宋、黑体、楷体 | Fandol 仿宋、黑体、楷体 |
 | 国标主标题／页码 | 方正小标宋、SimSun | Fandol 宋体粗体／常规 |
 | 数学 | New Computer Modern Math；Word 优先 Cambria Math | 原样张使用的 New Computer Modern Math |
+| 代码 | Liberation Mono、Fandol 仿宋 | 随包提供，支持中文与英文代码混排 |
 
-字体文件及许可证在[`skills/recto/assets/fonts/`](skills/recto/assets/fonts/README.md)，约 37 MiB。LuaLaTeX 通过路径直接读取；Word 编辑时由安装流程将随包字体装到用户字体目录。替代关系写进导出报告。Fandol 宋体粗体并非小标宋的等同替代，字体替代后仍须复核版式。专有字体不在公开仓库中分发。
+字体文件及许可证在[`skills/recto/assets/fonts/`](skills/recto/assets/fonts/README.md)，约 38 MiB。LuaLaTeX 通过路径直接读取；Word 编辑时由安装流程将随包字体装到用户字体目录。替代关系写进导出报告。Fandol 宋体粗体并非小标宋的等同替代，字体替代后仍须复核版式。专有字体不在公开仓库中分发。
 
 只使用随包字体的实际首页：[课程讲义](docs/recto/previews/reference-bundled.png) · [国标正文](docs/recto/previews/gbt9704-bundled.png)。
 
@@ -172,7 +173,7 @@ python skills/recto/scripts/doctor.py --style reference --formats tex,pdf,docx
 
 首次学习按学习依赖展开；复习按概念联系和已有练习查漏；题目讲解保留题号与原题，完整引用不扩大作答范围。明确要求“只有公式和常数”时生成速查版，不强加例题或讲解。
 
-默认白底黑字／灰度。公式使用受限的 LaTeX 数学语法，由 LuaLaTeX 排版；raw TeX 被拒绝，不支持的宏直接报错。正文语言与考试答案语言按本次要求处理，不为所有用户固定中英组合。
+默认白底黑字／灰度；代码使用浅灰底与深色语法高亮，保留缩进，支持长行换行和跨页。引用可跳至文内证据索引，再通过已核实的外链访问来源。写法见[引用和代码](skills/recto/references/export.md#引用和代码)。公式使用受限的 LaTeX 数学语法，由 LuaLaTeX 排版；raw TeX 被拒绝，不支持的宏直接报错。正文语言与考试答案语言按本次要求处理，不为所有用户固定中英组合。
 
 **只改指定部分：**
 

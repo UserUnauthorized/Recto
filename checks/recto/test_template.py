@@ -157,6 +157,20 @@ class TemplateTests(unittest.TestCase):
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn('implementation', rejected.stderr)
 
+            # Word-only deliveries have no font copy; validate the installed font bytes too.
+            command = [sys.executable, str(copied_skill / 'scripts/export.py'), str(source),
+                       '--formats', 'docx', '--bundled-fonts', '--output', str(root / 'word-only')]
+            exported = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(exported.returncode, 0, exported.stderr)
+            report = root / 'word-only.json'
+            report.write_text(exported.stdout)
+            font = copied_skill / 'assets/fonts/liberation/LiberationMono-Regular.ttf'
+            font.write_bytes(font.read_bytes() + b'changed after export')
+            rejected = subprocess.run(command + ['--verify-report', str(report)],
+                                      env=environment, capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn('implementation', rejected.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()

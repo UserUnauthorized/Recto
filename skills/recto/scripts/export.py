@@ -149,6 +149,19 @@ def make_reference(path, profile):
     p=s.paragraph_format; p.first_line_indent=Pt(0); p.space_after=Pt(cfg['line']); p.keep_with_next=True
     for name in ['Verbatim Char','Hyperlink']:
         if name in doc.styles: doc.styles[name].font.color.rgb=RGBColor(0,0,0)
+    char_style=doc.styles['Verbatim Char']; font_style(char_style,cfg['code_cjk'],cfg['mono'],10.5)
+    if 'Source Code' not in doc.styles:
+        code=doc.styles.add_style('Source Code', WD_STYLE_TYPE.PARAGRAPH)
+        code.base_style=doc.styles['Normal']
+    else: code=doc.styles['Source Code']
+    font_style(code,cfg['code_cjk'],cfg['mono'],10.5)
+    p=code.paragraph_format; p.first_line_indent=Pt(0); p.space_before=Pt(4); p.space_after=Pt(4)
+    p.line_spacing=Pt(15); p.line_spacing_rule=WD_LINE_SPACING.AT_LEAST
+    p.alignment=WD_ALIGN_PARAGRAPH.LEFT
+    p.keep_together=False; p.keep_with_next=False; p.widow_control=True
+    props=code.element.get_or_add_pPr()
+    props.append(elem('w:wordWrap',w_val='0'))
+    props.append(elem('w:shd',w_val='clear',w_color='auto',w_fill='F5F5F5'))
     if not course:
         for name in ['Normal','Body Text','First Paragraph','Compact','Heading 1','Heading 2','Heading 3','Heading 4']:
             doc.styles[name].element.get_or_add_rPr().append(elem('w:spacing',w_val=-5))
@@ -311,14 +324,20 @@ def polish_docx(path, profile, expected_math, orientation):
                 cell.vertical_alignment=WD_ALIGN_VERTICAL.CENTER
                 for p in cell.paragraphs:
                     pf=p.paragraph_format; pf.first_line_indent=Pt(0); pf.space_before=Pt(0); pf.space_after=Pt(0)
-                    size=10.5 if profile=='reference' else 16
+                    code_paragraph=p.style.name=='Source Code'
+                    size=10.5 if profile=='reference' or code_paragraph else 16
                     pf.line_spacing=Pt(size*1.55)
+                    if code_paragraph: pf.line_spacing=Pt(15)
                     for r in p.runs:
                         r.font.size=Pt(size)
                         fonts=r._r.get_or_add_rPr().find(qn('w:rFonts'))
                         if fonts is None: fonts=elem('w:rFonts'); r._r.get_or_add_rPr().append(fonts)
-                        fonts.set(qn('w:eastAsia'),cfg['hei'] if ri==0 and profile=='gbt9704' else cfg['body'])
-                        r.bold=ri==0 and profile=='reference'
+                        run_style=r._r.find('w:rPr/w:rStyle',NS)
+                        code_run=(run_style is not None and
+                                  (run_style.get(qn('w:val'))=='VerbatimChar' or run_style.get(qn('w:val')).endswith('Tok')))
+                        fonts.set(qn('w:eastAsia'),cfg['code_cjk'] if code_paragraph or code_run else
+                                  (cfg['hei'] if ri==0 and profile=='gbt9704' else cfg['body']))
+                        if not code_paragraph and not code_run: r.bold=ri==0 and profile=='reference'
     doc.save(path)
     with ZipFile(path) as z:
         math_count=sum(len(etree.fromstring(z.read(n)).xpath('//m:oMath',namespaces=NS)) for n in z.namelist() if n.startswith('word/') and n.endswith('.xml'))
@@ -336,8 +355,9 @@ def walk(value):
 
 def implementation_hashes(style):
     paths = ['scripts/export.py', 'scripts/latex.py', 'scripts/doctor.py', 'scripts/blocks.lua',
-             'assets/latexmkrc', 'assets/styles/common.tex', f'assets/styles/{style}.tex',
+             'assets/latexmkrc', 'assets/styles/common.tex', 'assets/styles/code.theme', f'assets/styles/{style}.tex',
              'assets/fonts/SHA256SUMS.json']
+    paths.extend('assets/fonts/' + name for name in json.loads((ROOT / 'assets/fonts/SHA256SUMS.json').read_text()))
     return {name: sha256((ROOT / name).read_bytes()).hexdigest() for name in paths}
 
 
@@ -403,7 +423,7 @@ def main():
     STYLES[args.style].update(fonts, title_bold=args.style=='gbt9704' and fonts['title']=='FandolSong')
     if runtime['substitutions']:
         print('Font substitutions: '+json.dumps(runtime['substitutions'],ensure_ascii=False),file=sys.stderr)
-    ast=json.loads(run(['pandoc',str(source),'-f','markdown-latex_macros','-t','json']))
+    ast=json.loads(run(['pandoc',str(source),'-f','markdown-latex_macros','--preserve-tabs','-t','json']))
     math_count=0; orientations=['portrait']
     seen_appendix=False
     top_appendices=0
@@ -434,7 +454,8 @@ def main():
             if image!=dest: shutil.copy2(image,dest)
             node['c'][2][0]=str(dest.relative_to(out))
     env=dict(os.environ,RECTO_STYLE=args.style)
-    common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),'--table-caption-position=below']
+    common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),'--table-caption-position=below',
+            '--syntax-highlighting',str(ROOT/'assets/styles/code.theme')]
     outputs=[]
     if formats & {'tex','pdf'}:
         latex_ast=deepcopy(ast)
