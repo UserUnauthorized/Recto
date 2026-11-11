@@ -37,4 +37,12 @@ AutoTD 报告的共同源将 `[S1]` 至 `[S10]` 写为普通文字；原 6 页 P
 
 ## 未验证
 
-未用原生 Microsoft Word、WPS、Windows 或手机 PDF 阅读器验收；未运行远端 CI、合并、发布或替换本地安装版本。字体替代与 PDF 文本选择行为仍以实际阅读器为准。
+未用原生 Microsoft Word、WPS、Windows 或手机 PDF 阅读器验收，也未替换本地安装版本。字体替代与 PDF 文本选择行为仍以实际阅读器为准。合并、发布状态以 PR 与 Release 为准。
+
+## PR CI 的跨版本分页复验
+
+[PR #10 的首轮 CI](https://github.com/UserUnauthorized/Recto/actions/runs/43062200806) 在两套样式的跨页代码回归中报告约 3–4pt 的纵向溢出。仅将本机 fvextra 换成上游 1.5 就能复现相同诊断；Ubuntu 24.04 / LuaHBTeX 1.17 环境也复现。
+
+`framed` 分割代码块时允许末行保留字深，随后又将它重新装入零字深盒子，可能超出分页时预留的高度。正式模板在 `Shaded` 环境内设置 `splitmaxdepth=0pt`，使分割时就计入末行字深；没有放宽溢出诊断或改短测试代码。
+
+修复后，本机 fvextra 1.14 的公开导出入口回归通过，两套样式同时覆盖 PDF 与 Word。另从正式入口生成 TeX，在隔离的 Ubuntu 24.04 环境编译两套压力样例：共 9 页逐页检查，70 行代码全部保留，无字体、引用或溢出警告。Linux 环境与诊断副本均在忽略的 QA 输出中，未加入发行包。
