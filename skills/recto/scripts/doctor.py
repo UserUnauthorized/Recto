@@ -18,7 +18,7 @@ TEX_FILES = (
     'titlesec.sty', 'caption.sty', 'needspace.sty', 'eso-pic.sty',
     'float.sty', 'array.sty', 'longtable.sty', 'booktabs.sty',
     'graphicx.sty', 'geometry.sty', 'hyperref.sty', 'xcolor.sty',
-    'fancyvrb.sty', 'bookmark.sty', 'footnotehyper.sty', 'etoolbox.sty',
+    'fancyvrb.sty', 'fvextra.sty', 'framed.sty', 'bookmark.sty', 'footnotehyper.sty', 'etoolbox.sty',
     'lmodern.sty',
 )
 BUNDLED_FONTS = {
@@ -27,6 +27,7 @@ BUNDLED_FONTS = {
     'FandolKai': 'fandol/FandolKai-*.otf',
     'FandolFang R': 'fandol/FandolFang-*.otf',
     'Liberation Serif': 'liberation/LiberationSerif-*.ttf',
+    'Liberation Mono': 'liberation/LiberationMono-*.ttf',
     'New Computer Modern Math': 'newcm/NewCMMath-*.otf',
 }
 ORIGINAL = {
@@ -46,6 +47,8 @@ def select_fonts(style, available):
     fonts = {role: name if name in available else FALLBACK[name]
              for role, name in ORIGINAL[style].items()}
     fonts['math'] = 'New Computer Modern Math'
+    fonts['mono'] = 'Liberation Mono'
+    fonts['code_cjk'] = 'FandolFang R'
     fonts['word_math'] = 'Cambria Math' if 'Cambria Math' in available else fonts['math']
     missing = set(fonts.values()) - set(available)
     if missing:

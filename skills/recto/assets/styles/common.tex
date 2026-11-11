@@ -1,6 +1,12 @@
 % Shared LuaLaTeX layout; font selection is embedded by the exporter.
 \usepackage[fontset=none,scheme=plain]{ctex}
 \usepackage{titlesec,caption,needspace,graphicx,eso-pic,float,array,longtable,booktabs}
+\usepackage{fvextra}[2022/11/30]
+\fvset{tabsize=4,breaklines,breakanywhere,breaknonspaceingroup,breaksymbolleft={},breaksymbolright={},breakanywheresymbolpre={}}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},fontsize=\ttfamily\fontsize{10.5bp}{15bp}\selectfont,xleftmargin=6bp,xrightmargin=6bp}
+\renewcommand{\theFancyVerbLine}{\ttfamily\fontsize{8bp}{10bp}\selectfont\arabic{FancyVerbLine}}
+% Include the last code line's depth when framed splits and reboxes a page.
+\AtBeginEnvironment{Shaded}{\splitmaxdepth=0pt}
 \floatplacement{figure}{H}
 \captionsetup{labelsep=quad,justification=centering}
 \renewcommand{\figurename}{图}

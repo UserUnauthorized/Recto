@@ -69,7 +69,7 @@ class RuntimeTests(unittest.TestCase):
 
     def test_original_font_wins_and_missing_bundle_fails(self):
         available = {'Songti SC', 'Times New Roman', 'FandolSong', 'Liberation Serif',
-                     'New Computer Modern Math', 'Cambria Math'}
+                     'New Computer Modern Math', 'Cambria Math', 'Liberation Mono', 'FandolFang R'}
         fonts, replacements = select_fonts('reference', available)
         self.assertEqual(fonts['body'], 'Songti SC')
         self.assertEqual(replacements, {})

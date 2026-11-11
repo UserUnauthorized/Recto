@@ -1,0 +1,25 @@
+{
+  "text-color": "#202020",
+  "background-color": "#F5F5F5",
+  "line-number-color": "#606060",
+  "text-styles": {
+    "Keyword": {
+      "text-color": "#284B63",
+      "bold": true
+    },
+    "ControlFlow": {
+      "text-color": "#284B63",
+      "bold": true
+    },
+    "DataType": {
+      "text-color": "#284B63"
+    },
+    "String": {
+      "text-color": "#46633E"
+    },
+    "Comment": {
+      "text-color": "#5F5F5F",
+      "italic": true
+    }
+  }
+}

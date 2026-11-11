@@ -18,6 +18,7 @@ BUNDLED = {
     'FandolKai': ('fandol', 'FandolKai-Regular.otf', None),
     'FandolFang R': ('fandol', 'FandolFang-Regular.otf', None),
     'Liberation Serif': ('liberation', 'LiberationSerif-Regular.ttf', 'LiberationSerif-Bold.ttf'),
+    'Liberation Mono': ('liberation', 'LiberationMono-Regular.ttf', 'LiberationMono-Bold.ttf'),
     'New Computer Modern Math': ('newcm', 'NewCMMath-Regular.otf', 'NewCMMath-Bold.otf'),
 }
 
@@ -178,6 +179,7 @@ def export_latex(payload, common, run, style, fonts, out, formats, env):
         payload = json.dumps(document).encode()
         commands = [font_command(r'\setmainfont', fonts['latin'], texdir)]
         for command, role in [(r'\setCJKmainfont', 'body'), (r'\setCJKsansfont', 'hei'),
+                              (r'\setmonofont', 'mono'), (r'\setCJKmonofont', 'code_cjk'),
                               (r'\newCJKfontfamily\rectohei', 'hei'), (r'\newCJKfontfamily\rectokai', 'kai'),
                               (r'\newCJKfontfamily\rectotitlefont', 'title'), (r'\newfontfamily\rectofolio', 'folio')]:
             commands.append(font_command(command, fonts[role], texdir))
