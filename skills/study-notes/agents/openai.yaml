@@ -1,4 +1,4 @@
 interface:
   display_name: "讲义与题目讲解"
-  short_description: "从课程材料制作首次学习讲义、考前复习与指定题目讲解，按需分开讲解和考试答案"
+  short_description: "从课程材料制作首次学习讲义、考前复习与题目讲解；外语题分开讲解和简洁答案"
   default_prompt: "用 $study-notes 根据这些材料和我的学习基础制作讲义、复习资料或指定题目讲解，保留必要原题与推导，交付 Markdown、LaTeX 和 PDF。"
