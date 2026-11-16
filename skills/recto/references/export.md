@@ -112,7 +112,7 @@ def snapshot(users):
   > /absolute/qa/export-attempt-1.json
 ```
 
-`RECTO_ROOT` 是当前 Recto `SKILL.md` 所在目录。保存本次 stdout、检查退出码，再按 [导出与验证流程](../SKILL.md#4-导出) 使用同一来源、样式、格式、字体选项及输出目录追加 `--verify-report /absolute/qa/export-attempt-1.json` 复验；失败后仍走正式入口。
+`RECTO_ROOT` 沿用 [准备运行目录](setup.md#准备运行目录) 确认的执行环境内 skill 根目录。保存本次 stdout、检查退出码，再按 [导出与验证流程](../SKILL.md#4-导出) 使用同一来源、样式、格式、字体选项及输出目录追加 `--verify-report /absolute/qa/export-attempt-1.json` 复验；失败后仍走正式入口。
 
 `result` 是导出目录占位符，实际位置按上面的分支确定。默认交付 Markdown、LaTeX 和 PDF；本地完整目录示例：
 
@@ -146,7 +146,7 @@ latexmk -norc -r latex/latexmkrc -lualatex -interaction=nonstopmode -halt-on-err
 渲染 DOCX 可调用：
 
 ```sh
-"$RECTO_PYTHON" scripts/render_word.py result/document.docx --renderer /absolute/path/to/documents/render_docx.py --output /absolute/work/qa-word
+"$RECTO_PYTHON" "$RECTO_ROOT/scripts/render_word.py" result/document.docx --renderer /absolute/path/to/documents/render_docx.py --output /absolute/work/qa-word
 ```
 
 随后打开每一张 `page-N.png` 检查。多行推导对齐和相邻上标仍应重点核对。
