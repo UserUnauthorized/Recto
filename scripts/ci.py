@@ -45,6 +45,8 @@ def main():
         if not shutil.which(command):
             raise SystemExit(f'CI requires {command}; do not silently skip its checks')
     recto_tests(args.part)
+    if args.part != 'distribution':
+        run(sys.executable, '-m', 'unittest', 'discover', '-s', 'checks/release', '-v')
     if args.part == 'tests':
         run('git', 'diff', '--exit-code')
         return
@@ -62,8 +64,7 @@ def main():
         run(sys.executable, 'skills/recto/scripts/doctor.py', '--style', style,
             '--formats', 'tex,pdf,docx', '--bundled-fonts')
     # Release packaging calls the plugin and both skills' structural checks.
-    for folder in ('plugin', 'release'):
-        run(sys.executable, '-m', 'unittest', 'discover', '-s', f'checks/{folder}', '-v')
+    run(sys.executable, '-m', 'unittest', 'discover', '-s', 'checks/plugin', '-v')
     for name in build(tag):
         shutil.copy2(ROOT / 'dist' / name, bundle / name)
     consumer = workspace / 'consumer'

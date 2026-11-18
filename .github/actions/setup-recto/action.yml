@@ -25,34 +25,36 @@ runs:
           titlesec caption needspace eso-pic float booktabs fancyvrb fvextra lineno
           framed bookmark footnotehyper microtype selnolig upquote xurl parskip lm
 
-    - name: Identify Ubuntu package environment
-      id: ubuntu
-      shell: bash
-      run: echo "image=${ImageVersion:?}" >> "$GITHUB_OUTPUT"
-
-    - name: Restore SVG and PDF inspection packages
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+    - name: Restore Ubuntu inspection packages
       id: debs
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ${{ runner.temp }}/recto-debs/*.deb
-        key: recto-poppler-rsvg-${{ runner.arch }}-${{ steps.ubuntu.outputs.image }}
+        path: ${{ runner.temp }}/recto-debs
+        key: ubuntu-24.04-amd64-${{ hashFiles('.github/actions/setup-recto/ubuntu-tools.sha256') }}
 
-    - name: Install SVG and PDF inspection tools
+    - name: Set up SVG and PDF inspection tools
       shell: bash
       env:
         CACHE_HIT: ${{ steps.debs.outputs.cache-hit }}
       run: |
-        if command -v rsvg-convert && command -v pdfinfo && command -v pdftotext; then exit 0; fi
-        dir="$RUNNER_TEMP/recto-debs"
+        packages="$GITHUB_ACTION_PATH/ubuntu-tools.sha256"
+        snapshot=https://snapshot.ubuntu.com/ubuntu/20261118T000000Z
+        mkdir -p "$RUNNER_TEMP/recto-debs"
+        cd "$RUNNER_TEMP/recto-debs"
         if [[ "$CACHE_HIT" != true ]]; then
-          mkdir -p "$dir/partial"
-          download=(sudo apt-get -o "Dir::Cache::archives=$dir" --download-only --no-install-recommends -y install librsvg2-bin poppler-utils)
-          if ! "${download[@]}"; then
-            sudo apt-get update -qq
-            "${download[@]}"
-          fi
+          downloads=()
+          while read -r digest path; do
+            downloads+=(--output "$path" "$snapshot/$path")
+          done < "$packages"
+          curl --parallel --fail-early --fail --location --retry 2 --max-time 60 --create-dirs "${downloads[@]}"
         fi
-        sudo dpkg -i "$dir"/*.deb
+        sha256sum --check --strict "$packages"
+        root="$RUNNER_TEMP/recto-tools"
+        while read -r digest path; do
+          dpkg-deb --extract "$path" "$root"
+        done < "$packages"
+        echo "$root/usr/bin" >> "$GITHUB_PATH"
+        echo "LD_LIBRARY_PATH=$root/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 
     - name: Install latexmk 4.89
       shell: bash
