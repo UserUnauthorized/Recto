@@ -21,13 +21,9 @@ runs:
         texlive_version: '2023'
         accept-stale: false
         packages: >-
-          scheme-basic luatex luaotfload luatexja ctex fontspec unicode-math
-          titlesec caption needspace eso-pic float tools booktabs graphics geometry
-          hyperref xcolor fancyvrb fvextra framed bookmark footnotehyper etoolbox
-          lm selnolig microtype upquote xurl parskip footnote
-          luatexbase lualatex-math lualibs l3backend l3packages lua-ul
-          makecmds environ trimspaces xkeyval ms everysel collectbox adjustbox
-          xpatch luacode filehook zref
+          scheme-basic ctex luatexja chinese-jfm lualatex-math unicode-math
+          titlesec caption needspace eso-pic float booktabs fancyvrb fvextra lineno
+          framed bookmark footnotehyper microtype selnolig upquote xurl parskip lm
 
     - name: Install SVG and PDF inspection tools
       shell: bash
