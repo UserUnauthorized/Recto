@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run repository gates and exercise the distributable plugin in a clean directory."""
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
@@ -44,9 +45,15 @@ def main():
     for command in ('rsvg-convert', 'pdfinfo'):
         if not shutil.which(command):
             raise SystemExit(f'CI requires {command}; do not silently skip its checks')
-    recto_tests(args.part)
-    if args.part != 'distribution':
-        run(sys.executable, '-m', 'unittest', 'discover', '-s', 'checks/release', '-v')
+    if args.part == 'distribution':
+        recto_tests(args.part)
+    else:
+        # Release tests build in a temporary checkout, independent of all Recto exports.
+        with ThreadPoolExecutor(max_workers=1) as worker:
+            release_tests = worker.submit(run, sys.executable, '-m', 'unittest', 'discover',
+                                          '-s', 'checks/release', '-v')
+            recto_tests(args.part)
+            release_tests.result()
     if args.part == 'tests':
         run('git', 'diff', '--exit-code')
         return
