@@ -35,28 +35,7 @@ def recto_tests(part):
         raise SystemExit(1)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--tag', default='', help='Version to rehearse; empty uses the source manifest')
-    parser.add_argument('--part', choices=('all', 'tests', 'distribution'), default='all')
-    args = parser.parse_args()
-    tag = args.tag or 'v' + json.loads((ROOT / 'plugin.json').read_text())['version']
-    version(tag)
-    for command in ('rsvg-convert', 'pdfinfo'):
-        if not shutil.which(command):
-            raise SystemExit(f'CI requires {command}; do not silently skip its checks')
-    if args.part == 'distribution':
-        recto_tests(args.part)
-    else:
-        # Release tests build in a temporary checkout, independent of all Recto exports.
-        with ThreadPoolExecutor(max_workers=1) as worker:
-            release_tests = worker.submit(run, sys.executable, '-m', 'unittest', 'discover',
-                                          '-s', 'checks/release', '-v')
-            recto_tests(args.part)
-            release_tests.result()
-    if args.part == 'tests':
-        run('git', 'diff', '--exit-code')
-        return
+def validate_distribution(tag):
     qa = ROOT / 'output/recto/ci'
     qa.mkdir(parents=True, exist_ok=True)
     workspace = Path(tempfile.mkdtemp(prefix='run-', dir=qa))
@@ -91,8 +70,31 @@ def main():
         run('pdfinfo', str(delivery / 'document.pdf'))
         for suffix in ('pdf', 'docx'):
             shutil.copy2(delivery / f'document.{suffix}', evidence / f'{style}.{suffix}')
-    run('git', 'diff', '--exit-code')
     print(f'Validated {tag}; bundle: {bundle}; consumer evidence: {evidence}')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--tag', default='', help='Version to rehearse; empty uses the source manifest')
+    parser.add_argument('--part', choices=('all', 'tests', 'distribution'), default='all')
+    args = parser.parse_args()
+    tag = args.tag or 'v' + json.loads((ROOT / 'plugin.json').read_text())['version']
+    version(tag)
+    for command in ('rsvg-convert', 'pdfinfo'):
+        if not shutil.which(command):
+            raise SystemExit(f'CI requires {command}; do not silently skip its checks')
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        if args.part == 'distribution':
+            # Consumers use a private unpacked copy; export tests use their own temporary files.
+            parallel = worker.submit(validate_distribution, tag)
+        else:
+            parallel = worker.submit(run, sys.executable, '-m', 'unittest', 'discover',
+                                     '-s', 'checks/release', '-v')
+        recto_tests(args.part)
+        parallel.result()
+    if args.part == 'all':
+        validate_distribution(tag)
+    run('git', 'diff', '--exit-code')
 
 
 if __name__ == '__main__':
