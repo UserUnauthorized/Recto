@@ -8,9 +8,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unittest
 from zipfile import ZipFile
 
-from release import build, verify, version
+from release import build, version
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -19,15 +20,34 @@ def run(*args, **kwargs):
     subprocess.run(args, cwd=ROOT, check=True, **kwargs)
 
 
+def recto_tests(part):
+    class Loader(unittest.TestLoader):
+        def getTestCaseNames(self, case):
+            names = super().getTestCaseNames(case)
+            if part == 'all':
+                return names
+            # Put the shorter half alongside the consumer exports.
+            return names[0::2] if part == 'distribution' else names[1::2]
+
+    suite = Loader().discover(str(ROOT / 'checks/recto'))
+    if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():
+        raise SystemExit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--tag', default='', help='Version to rehearse; empty uses the source manifest')
+    parser.add_argument('--part', choices=('all', 'tests', 'distribution'), default='all')
     args = parser.parse_args()
     tag = args.tag or 'v' + json.loads((ROOT / 'plugin.json').read_text())['version']
     version(tag)
     for command in ('rsvg-convert', 'pdfinfo'):
         if not shutil.which(command):
             raise SystemExit(f'CI requires {command}; do not silently skip its checks')
+    recto_tests(args.part)
+    if args.part == 'tests':
+        run('git', 'diff', '--exit-code')
+        return
     qa = ROOT / 'output/recto/ci'
     qa.mkdir(parents=True, exist_ok=True)
     workspace = Path(tempfile.mkdtemp(prefix='run-', dir=qa))
@@ -41,12 +61,10 @@ def main():
     for style in ('reference', 'gbt9704'):
         run(sys.executable, 'skills/recto/scripts/doctor.py', '--style', style,
             '--formats', 'tex,pdf,docx', '--bundled-fonts')
-    run(sys.executable, 'scripts/skills.py', 'check')
-    run(sys.executable, 'scripts/plugin.py', 'check')
-    for folder in ('recto', 'plugin', 'release'):
+    # Release packaging calls the plugin and both skills' structural checks.
+    for folder in ('plugin', 'release'):
         run(sys.executable, '-m', 'unittest', 'discover', '-s', f'checks/{folder}', '-v')
-    build(tag)
-    for name in verify(ROOT / 'dist', tag):
+    for name in build(tag):
         shutil.copy2(ROOT / 'dist' / name, bundle / name)
     consumer = workspace / 'consumer'
     with ZipFile(bundle / f'recto-plugin-{tag[1:]}.zip') as archive:

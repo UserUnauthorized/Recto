@@ -17,14 +17,62 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ startsWith(github.ref, 'refs/tags/') && 'release' || github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && 'release' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  validate:
-    name: Full validation
+  scope:
+    name: Select PR checks
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.diff.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          sparse-checkout: |
+            /README.md
+          sparse-checkout-cone-mode: false
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --quiet --no-renames "$BASE...$HEAD" -- . ':(top,exclude,literal)README.md' ':(top,exclude,glob)docs/**/*.md'; then
+            echo 'docs_only=true' >> "$GITHUB_OUTPUT"
+          else
+            test "$?" -eq 1
+            echo 'docs_only=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  tests:
+    name: Recto export tests
+    needs: scope
+    if: >-
+      !cancelled() && (needs.scope.result == 'skipped' ||
+      (needs.scope.result == 'success' && needs.scope.outputs.docs_only == 'false'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-recto
+      - run: python scripts/ci.py --part tests
+
+  distribution:
+    name: Packages and consumer exports
+    needs: scope
+    if: >-
+      !cancelled() && (needs.scope.result == 'skipped' ||
+      (needs.scope.result == 'success' && needs.scope.outputs.docs_only == 'false'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.checks.outputs.tag }}
+      checksum: ${{ steps.checksum.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,7 +88,7 @@ jobs:
         id: checks
         env:
           RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag || '' }}
-        run: python scripts/ci.py --tag "$RELEASE_TAG"
+        run: python scripts/ci.py --part distribution --tag "$RELEASE_TAG"
       - name: Save validated packages
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -48,19 +96,12 @@ jobs:
           path: ${{ steps.checks.outputs.bundle }}
           if-no-files-found: error
           overwrite: true
+          compression-level: 0
           retention-days: 7
-      - name: Download the uploaded distribution
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-bundle
-          path: output/recto/ci/roundtrip
-      - name: Verify artifact transport
+      - id: checksum
         env:
-          RELEASE_TAG: ${{ steps.checks.outputs.tag }}
-          VALIDATED_BUNDLE: ${{ steps.checks.outputs.bundle }}
-        run: |
-          python scripts/release.py verify --tag "$RELEASE_TAG" --dist output/recto/ci/roundtrip
-          cmp "$VALIDATED_BUNDLE/SHA256SUMS" output/recto/ci/roundtrip/SHA256SUMS
+          BUNDLE: ${{ steps.checks.outputs.bundle }}
+        run: echo "sha=$(sha256sum "$BUNDLE/SHA256SUMS" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       - name: Save consumer export evidence
         if: always() && steps.checks.outputs.evidence != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -69,11 +110,42 @@ jobs:
           path: ${{ steps.checks.outputs.evidence }}
           if-no-files-found: ignore
           overwrite: true
+          compression-level: 0
           retention-days: 7
+
+  validate:
+    name: Full validation
+    needs: [scope, tests, distribution]
+    if: >-
+      !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require both validation jobs
+        env:
+          TESTS: ${{ needs.tests.result }}
+          DISTRIBUTION: ${{ needs.distribution.result }}
+        run: test "$TESTS" = success && test "$DISTRIBUTION" = success
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the uploaded distribution
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-bundle
+          path: output/recto/ci/roundtrip
+      - name: Verify artifact transport
+        env:
+          RELEASE_TAG: ${{ needs.distribution.outputs.tag }}
+          CHECKSUM: ${{ needs.distribution.outputs.checksum }}
+        run: |
+          python scripts/release.py verify --tag "$RELEASE_TAG" --dist output/recto/ci/roundtrip
+          printf '%s  %s\n' "$CHECKSUM" output/recto/ci/roundtrip/SHA256SUMS | sha256sum -c -
 
   publish:
     name: Publish verified tag
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: >-
+      !cancelled() && needs.validate.result == 'success' &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 15

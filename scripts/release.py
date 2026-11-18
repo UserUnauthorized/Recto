@@ -94,8 +94,9 @@ def build(tag):
     paths = [package_plugin(tag[1:]), package_skill('recto'), package_skill('study-notes')]
     checksums = ''.join(f'{sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in paths)
     (ROOT / 'dist/SHA256SUMS').write_text(checksums)
-    verify(ROOT / 'dist', tag)
+    names = verify(ROOT / 'dist', tag)
     print(checksums, end='')
+    return names
 
 
 def verify_remote(release, directory, names):
