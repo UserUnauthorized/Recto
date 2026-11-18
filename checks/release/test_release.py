@@ -48,6 +48,21 @@ class ReleaseContractTests(unittest.TestCase):
                 self.assertEqual(json.loads(archive.read("plugin.json"))["version"], "0.9.0")
             self.assertEqual(manifest.read_bytes(), source_manifest)
 
+            plugin = repo / "dist/recto-plugin-0.9.0.zip"
+            first_mtime = plugin.stat().st_mtime_ns
+            command = [sys.executable, "scripts/release.py", "build", "--tag", "v0.9.0"]
+            subprocess.run(command, cwd=repo, check=True, capture_output=True)
+            self.assertEqual(plugin.stat().st_mtime_ns, first_mtime)
+            resource = repo / "skills/study-notes/SKILL.md"
+            resource.write_bytes(resource.read_bytes() + b"\n")
+            subprocess.run(command, cwd=repo, check=True, capture_output=True)
+            with ZipFile(plugin) as archive:
+                self.assertEqual(archive.read("skills/study-notes/SKILL.md"), resource.read_bytes())
+            plugin.write_bytes(b"damaged archive")
+            subprocess.run(command, cwd=repo, check=True, capture_output=True)
+            with ZipFile(plugin) as archive:
+                self.assertIsNone(archive.testzip())
+
             checksums = repo / "dist/SHA256SUMS"
             checksum = checksums.read_text().splitlines()[0]
             tampered = ("1" if checksum[0] == "0" else "0") + checksum[1:]

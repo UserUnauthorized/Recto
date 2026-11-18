@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run repository gates and exercise the distributable plugin in a clean directory."""
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
@@ -8,9 +9,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unittest
 from zipfile import ZipFile
 
-from release import build, verify, version
+from release import build, version
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -19,15 +21,21 @@ def run(*args, **kwargs):
     subprocess.run(args, cwd=ROOT, check=True, **kwargs)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--tag', default='', help='Version to rehearse; empty uses the source manifest')
-    args = parser.parse_args()
-    tag = args.tag or 'v' + json.loads((ROOT / 'plugin.json').read_text())['version']
-    version(tag)
-    for command in ('rsvg-convert', 'pdfinfo'):
-        if not shutil.which(command):
-            raise SystemExit(f'CI requires {command}; do not silently skip its checks')
+def recto_tests(part):
+    class Loader(unittest.TestLoader):
+        def getTestCaseNames(self, case):
+            names = super().getTestCaseNames(case)
+            if part == 'all':
+                return names
+            # Put the shorter half alongside the consumer exports.
+            return names[0::2] if part == 'distribution' else names[1::2]
+
+    suite = Loader().discover(str(ROOT / 'checks/recto'))
+    if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():
+        raise SystemExit(1)
+
+
+def validate_distribution(tag):
     qa = ROOT / 'output/recto/ci'
     qa.mkdir(parents=True, exist_ok=True)
     workspace = Path(tempfile.mkdtemp(prefix='run-', dir=qa))
@@ -41,12 +49,9 @@ def main():
     for style in ('reference', 'gbt9704'):
         run(sys.executable, 'skills/recto/scripts/doctor.py', '--style', style,
             '--formats', 'tex,pdf,docx', '--bundled-fonts')
-    run(sys.executable, 'scripts/skills.py', 'check')
-    run(sys.executable, 'scripts/plugin.py', 'check')
-    for folder in ('recto', 'plugin', 'release'):
-        run(sys.executable, '-m', 'unittest', 'discover', '-s', f'checks/{folder}', '-v')
-    build(tag)
-    for name in verify(ROOT / 'dist', tag):
+    # Release packaging calls the plugin and both skills' structural checks.
+    run(sys.executable, '-m', 'unittest', 'discover', '-s', 'checks/plugin', '-v')
+    for name in build(tag):
         shutil.copy2(ROOT / 'dist' / name, bundle / name)
     consumer = workspace / 'consumer'
     with ZipFile(bundle / f'recto-plugin-{tag[1:]}.zip') as archive:
@@ -65,8 +70,31 @@ def main():
         run('pdfinfo', str(delivery / 'document.pdf'))
         for suffix in ('pdf', 'docx'):
             shutil.copy2(delivery / f'document.{suffix}', evidence / f'{style}.{suffix}')
-    run('git', 'diff', '--exit-code')
     print(f'Validated {tag}; bundle: {bundle}; consumer evidence: {evidence}')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--tag', default='', help='Version to rehearse; empty uses the source manifest')
+    parser.add_argument('--part', choices=('all', 'tests', 'distribution'), default='all')
+    args = parser.parse_args()
+    tag = args.tag or 'v' + json.loads((ROOT / 'plugin.json').read_text())['version']
+    version(tag)
+    for command in ('rsvg-convert', 'pdfinfo'):
+        if not shutil.which(command):
+            raise SystemExit(f'CI requires {command}; do not silently skip its checks')
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        if args.part == 'distribution':
+            # Consumers use a private unpacked copy; export tests use their own temporary files.
+            parallel = worker.submit(validate_distribution, tag)
+        else:
+            parallel = worker.submit(run, sys.executable, '-m', 'unittest', 'discover',
+                                     '-s', 'checks/release', '-v')
+        recto_tests(args.part)
+        parallel.result()
+    if args.part == 'all':
+        validate_distribution(tag)
+    run('git', 'diff', '--exit-code')
 
 
 if __name__ == '__main__':

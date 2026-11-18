@@ -15,22 +15,51 @@ runs:
           requirements-dev.txt
           skills/recto/requirements.txt
 
-    - name: Install Linux system dependencies
+    - name: Set up TeX Live 2023
+      uses: zauguin/install-texlive@f5e7d0b117035fff797d4392ea94131747e03d60 # v4
+      with:
+        texlive_version: '2023'
+        accept-stale: false
+        packages: >-
+          scheme-basic ctex luatexja chinese-jfm lualatex-math unicode-math
+          titlesec caption needspace eso-pic float booktabs fancyvrb fvextra lineno
+          framed bookmark footnotehyper microtype selnolig upquote xurl parskip lm
+
+    - name: Restore Ubuntu inspection packages
+      id: debs
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/recto-debs
+        key: ubuntu-24.04-amd64-${{ hashFiles('.github/actions/setup-recto/ubuntu-tools.sha256') }}
+
+    - name: Set up SVG and PDF inspection tools
       shell: bash
+      env:
+        CACHE_HIT: ${{ steps.debs.outputs.cache-hit }}
       run: |
-        set -euo pipefail
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          latexmk \
-          librsvg2-bin \
-          lmodern \
-          poppler-utils \
-          unzip \
-          texlive-fonts-recommended \
-          texlive-lang-chinese \
-          texlive-lang-japanese \
-          texlive-latex-extra \
-          texlive-luatex
+        packages="$GITHUB_ACTION_PATH/ubuntu-tools.sha256"
+        snapshot=https://snapshot.ubuntu.com/ubuntu/20261118T000000Z
+        mkdir -p "$RUNNER_TEMP/recto-debs"
+        cd "$RUNNER_TEMP/recto-debs"
+        if [[ "$CACHE_HIT" != true ]]; then
+          fetch() {
+            local mirror=$1
+            local -a downloads=()
+            while read -r digest path; do
+              downloads+=(--output "$path" "$mirror/$path")
+            done < "$packages"
+            curl --parallel --fail-early --fail --location --connect-timeout 5 --max-time 20 --create-dirs "${downloads[@]}" &&
+              sha256sum --check --strict --status "$packages"
+          }
+          fetch https://azure.archive.ubuntu.com/ubuntu || fetch https://archive.ubuntu.com/ubuntu || fetch "$snapshot"
+        fi
+        sha256sum --check --strict "$packages"
+        root="$RUNNER_TEMP/recto-tools"
+        while read -r digest path; do
+          dpkg-deb --extract "$path" "$root"
+        done < "$packages"
+        echo "$root/usr/bin" >> "$GITHUB_PATH"
+        echo "LD_LIBRARY_PATH=$root/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 
     - name: Install latexmk 4.89
       shell: bash
@@ -87,11 +116,3 @@ runs:
         python -m pip install \
           -r requirements-dev.txt \
           -r skills/recto/requirements.txt
-
-    - name: Check Recto dependencies
-      shell: bash
-      run: |
-        set -euo pipefail
-        hash -r
-        python skills/recto/scripts/doctor.py \
-          --style reference --formats tex,pdf --bundled-fonts
