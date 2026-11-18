@@ -42,11 +42,16 @@ runs:
         mkdir -p "$RUNNER_TEMP/recto-debs"
         cd "$RUNNER_TEMP/recto-debs"
         if [[ "$CACHE_HIT" != true ]]; then
-          downloads=()
-          while read -r digest path; do
-            downloads+=(--output "$path" "$snapshot/$path")
-          done < "$packages"
-          curl --parallel --fail-early --fail --location --retry 2 --max-time 60 --create-dirs "${downloads[@]}"
+          fetch() {
+            local mirror=$1
+            local -a downloads=()
+            while read -r digest path; do
+              downloads+=(--output "$path" "$mirror/$path")
+            done < "$packages"
+            curl --parallel --fail-early --fail --location --connect-timeout 5 --max-time 20 --create-dirs "${downloads[@]}" &&
+              sha256sum --check --strict --status "$packages"
+          }
+          fetch https://azure.archive.ubuntu.com/ubuntu || fetch https://archive.ubuntu.com/ubuntu || fetch "$snapshot"
         fi
         sha256sum --check --strict "$packages"
         root="$RUNNER_TEMP/recto-tools"

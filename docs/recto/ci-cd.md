@@ -12,7 +12,7 @@
 
 ## 日常检查
 
-PR 仅修改根 `README.md` 或 `docs/` 下的 Markdown 时，只运行路径判断。`Full validation` 会返回 skipped，可作为 PR 必需检查。路径判断使用 PR 基点与 head 的完整 Git 差异；插件截图、skill 正文、样例、脚本以及混合改动都运行全量检查。每次 `main` 推送、标签和手动运行均执行全量验证。依赖版本与安装命令以 [环境配置](../../.github/actions/setup-recto/action.yml)为准。latexmk 单独安装并验证下载摘要，因为导出器依赖的 hook 接口在 4.84 才公开，不能直接使用 Ubuntu 的较旧版本。TeX Live 2023 和 pip 使用安装 action 自带的缓存。SVG/PDF 辅助工具使用 Ubuntu 快照中的四个二进制包，按随配置提交的 SHA-256 再次校验。更新这些包时同步快照日期和摘要。CI 使用仓库声明的依赖，不依赖开发者机器或私有 documents skill。
+PR 仅修改根 `README.md` 或 `docs/` 下的 Markdown 时，只运行路径判断。`Full validation` 会返回 skipped，可作为 PR 必需检查。路径判断使用 PR 基点与 head 的完整 Git 差异；插件截图、skill 正文、样例、脚本以及混合改动都运行全量检查。每次 `main` 推送、标签和手动运行均执行全量验证。依赖版本与安装命令以 [环境配置](../../.github/actions/setup-recto/action.yml)为准。latexmk 单独安装并验证下载摘要，因为导出器依赖的 hook 接口在 4.84 才公开，不能直接使用 Ubuntu 的较旧版本。TeX Live 2023 和 pip 使用安装 action 自带的缓存。SVG/PDF 辅助工具使用 Ubuntu 的四个固定二进制包。冷启动优先使用 Azure 镜像，超时或摘要校验失败时依次尝试 Ubuntu 主站和对应日期的快照；缓存命中也复核 SHA-256。更新这些包时同步快照日期和摘要。CI 使用仓库声明的依赖，不依赖开发者机器或私有 documents skill。
 
 `scripts/ci.py` 默认在本地执行所有测试。CI 将 Recto 测试按每个测试类中方法名的顺序交错分配到两台 Ubuntu runner。一台同时运行发布测试。另一台校验两套样式的依赖、运行插件测试、构建三个 ZIP 并校验摘要。打包入口检查插件结构和每个 skill。随后在新的消费者目录解压插件，用包内样例与公开入口导出两套样式的 TeX、PDF、DOCX，并复验报告。使用随包字体；缺少 SVG 转换工具会失败，不能把对应测试跳过当成全通过。
 
