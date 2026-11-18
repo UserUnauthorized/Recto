@@ -25,11 +25,34 @@ runs:
           titlesec caption needspace eso-pic float booktabs fancyvrb fvextra lineno
           framed bookmark footnotehyper microtype selnolig upquote xurl parskip lm
 
+    - name: Identify Ubuntu package environment
+      id: ubuntu
+      shell: bash
+      run: echo "image=${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore SVG and PDF inspection packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: debs
+      with:
+        path: ${{ runner.temp }}/recto-debs/*.deb
+        key: recto-poppler-rsvg-${{ runner.arch }}-${{ steps.ubuntu.outputs.image }}
+
     - name: Install SVG and PDF inspection tools
       shell: bash
+      env:
+        CACHE_HIT: ${{ steps.debs.outputs.cache-hit }}
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends librsvg2-bin poppler-utils
+        if command -v rsvg-convert && command -v pdfinfo && command -v pdftotext; then exit 0; fi
+        dir="$RUNNER_TEMP/recto-debs"
+        if [[ "$CACHE_HIT" != true ]]; then
+          mkdir -p "$dir/partial"
+          download=(sudo apt-get -o "Dir::Cache::archives=$dir" --download-only --no-install-recommends -y install librsvg2-bin poppler-utils)
+          if ! "${download[@]}"; then
+            sudo apt-get update -qq
+            "${download[@]}"
+          fi
+        fi
+        sudo dpkg -i "$dir"/*.deb
 
     - name: Install latexmk 4.89
       shell: bash

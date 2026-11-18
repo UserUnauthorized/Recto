@@ -8,7 +8,9 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
+import zlib
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,6 +101,37 @@ def build(tag):
     return names
 
 
+def build_local(tag):
+    """Reuse only a byte-identical, previously verified local distribution."""
+    from plugin import metadata_files
+
+    sources = set(metadata_files()) | set((ROOT / 'scripts').glob('*.py'))
+    sources.add(ROOT / '.agents/plugins/marketplace.json')
+    inputs = [(str(p.relative_to(ROOT)), sha256(p.read_bytes()).hexdigest()) for p in sorted(sources)]
+    inputs = json.dumps([tag, sys.version, zlib.ZLIB_RUNTIME_VERSION, inputs]).encode()
+    dist = ROOT / 'dist'
+    sums = dist / 'SHA256SUMS'
+    stamp = ROOT / 'output/recto/ci/local-build.sha256'
+
+    def signature():
+        digest = sha256(inputs)
+        for name in [*artifact_names(tag), 'SHA256SUMS']:
+            digest.update(sha256((dist / name).read_bytes()).digest())
+        return digest.digest()
+
+    try:
+        if stamp.read_bytes() == signature():
+            print(sums.read_text(), end='')
+            return
+    except FileNotFoundError:
+        pass
+    build(tag)
+    stamp.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=stamp.parent, delete=False) as tmp:
+        tmp.write(signature())
+    Path(tmp.name).replace(stamp)
+
+
 def verify_remote(release, directory, names):
     assets = {asset['name']: asset for asset in release['assets']}
     if len(release['assets']) != len(names) or set(assets) != set(names):
@@ -170,7 +203,7 @@ def main():
     if args.action in ('preflight', 'publish') and (not args.repo or not args.commit):
         parser.error('preflight/publish require --repo and --commit, or GitHub Actions environment')
     if args.action == 'build':
-        build(args.tag)
+        build_local(args.tag)
     elif args.action == 'verify':
         print('\n'.join(verify(args.dist, args.tag)))
     elif args.action == 'preflight':
