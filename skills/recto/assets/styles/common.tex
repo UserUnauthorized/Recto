@@ -15,6 +15,10 @@
 \setlength{\arrayrulewidth}{0.5bp}
 \linespread{1}
 \setcounter{secnumdepth}{-1}
+% Pandoc spells an exponent's literal caret as \^{} in the PDF bookmark.
+\AddToHook{package/hyperref/after}{\pdfstringdefDisableCommands{%
+  \let\rectopdfaccent\^%
+  \def\^#1{\IfBlankTF{#1}{\textasciicircum}{\rectopdfaccent{#1}}}}}
 \setlength{\emergencystretch}{2em}
 \pagestyle{empty}
 \raggedbottom
