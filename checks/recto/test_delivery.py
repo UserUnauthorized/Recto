@@ -125,7 +125,9 @@ class DeliveryTests(unittest.TestCase):
     def test_math_notation_comments_and_literal_percent_still_export(self):
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / 'source.md'
-            source.write_text(r'''$$
+            source.write_text(r'''## Why try $Y(t)=e^{\lambda t}x$?
+
+$$
 \begin{aligned}
 \text{input 50\%} &= \frac{\alpha}{\sqrt{x}}\\ % \input{not-a-file} is a comment
 \operatorname{rank}(A)	&=n
@@ -142,8 +144,10 @@ $$\begin{pmatrix}1&0\\0&1\end{pmatrix},\quad\lim_{x\to0}\frac{\sin x}{x}=1$$
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             report = json.loads(result.stdout)
-            self.assertEqual(report['native_word_math_count'], 2)
-            self.assertTrue((out / 'document.pdf').read_bytes().startswith(b'%PDF-'))
+            self.assertEqual(report['native_word_math_count'], 3)
+            pdf_xml = etree.fromstring(subprocess.check_output(
+                ['pdftohtml', '-xml', '-stdout', '-i', str(out / 'document.pdf')]))
+            self.assertIn('Y(t)=e^', pdf_xml.findtext('.//outline/item'))
 
     def test_latexmk_settles_a_table_of_contents_that_moves_page_references(self):
         with tempfile.TemporaryDirectory() as temporary:

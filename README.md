@@ -102,7 +102,7 @@ python scripts/skills.py install recto --dest "$HOME/.agents/skills" --replace
 
 ## 依赖与随包字体
 
-Web 端先通过平台技能资源入口读取当前包，复用已挂载目录，或将完整随包资源原样放入执行环境，再运行同一导出器；具体步骤见[准备运行目录](skills/recto/references/setup.md#准备运行目录)。普通文档任务不搜索 GitHub 补取脚本；平台无法提供完整文件或执行能力时，保留源稿并报告缺项。
+Web 端先复用当前包的挂载目录或完整资源。如果字体只能预览，可用宿主的同包归档恢复。已确认官方来源和版本时，也可使用对应 Release 的 `recto-skill.zip` 与 `SHA256SUMS`；执行环境无法下载时可将两者作为附件提供。完整步骤见[准备运行目录](skills/recto/references/setup.md#准备运行目录)。
 
 排版前自动走**检查 → 只安装缺项 → 复查 → 继续原任务**。优先复用 Codex 桌面的捆绑 Python；没有桌面工具也能使用普通 Python。资源取得与依赖安装完成后，实际导出离线运行。检查脚本不安装、不联网：
 

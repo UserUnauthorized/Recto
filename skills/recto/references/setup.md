@@ -8,9 +8,10 @@
 
 1. **已有文件目录**：使用宿主返回的 Recto skill 路径，在将要运行 Python 的环境中确认文件可读。确认通过后直接复用；浏览器或另一台主机上的路径不能代替执行环境中的路径。
 2. **只有云端资源**：查看当前技能资源工具的说明，优先使用它提供的包挂载或完整下载能力。需要落盘时，在本轮非交付工作目录中新建独立目录，原样保存同一包的文件与目录结构，包括 `SKILL.md`、`scripts/`、`references/`、`assets/` 和 `requirements.txt`；只含单个 skill 的包或含 `skills/recto/` 的插件包均取实际 skill 根目录。若只支持逐文件取得，按该包文件清单保存全部随包文件。保留脚本、Lua 过滤器、模板、字体二进制和许可证；正文预览、截断文本或只有文件名的清单不足以恢复可执行文件。原样落盘用于运行当前包，不是重写导出器或维护另一份实现。
-3. **确认可运行**：将 `RECTO_ROOT` 设为上述执行环境中实际包含 `SKILL.md` 的绝对目录。按包文件清单核对文件齐全、可读、相对结构未变；有大小或校验值时核对一致，随包字体另按 `assets/fonts/SHA256SUMS.json` 校验。只有资源标识、下载成功提示或读到了 `export.py` 的文字，都不能算这一步完成。同一会话复用已核对目录；包来源变化时使用新目录，避免混合版本。
+3. **清单可读但字节取不到**：若字体读取返回 `Resource not readable` 或脚本只有预览，先查本会话已提供的同包 ZIP，或宿主能按当前插件及 release ID 取得的完整归档。在实际运行 Python 的环境打开归档。若宿主没有这条通道，但已从所选插件的元数据确认来源为 `UserUnauthorized/Recto` 的正式版本 `X.Y.Z`，可从 `https://github.com/UserUnauthorized/Recto/releases/download/vX.Y.Z/` 取 `recto-skill.zip` 和 `SHA256SUMS`。用同一标签清单中该文件的 SHA-256 校验下载字节，匹配后才解到新的工作目录。没有网络时，可请用户把同版正式包与校验文件附到当前会话。版本未知时先索取所选插件的版本或宿主原包；不要猜版本、取 latest 或把单个文件混入现有目录。
+4. **确认可运行**：将 `RECTO_ROOT` 设为上述执行环境中实际包含 `SKILL.md` 的绝对目录。按包文件清单核对文件齐全、可读、相对结构未变；有大小或校验值时核对一致，随包字体另按 `assets/fonts/SHA256SUMS.json` 校验。只有资源标识、下载成功提示或读到了 `export.py` 的文字，都不能算这一步完成。同一会话复用已核对目录；包来源变化时使用新目录，避免混合版本。
 
-平台没有脚本执行能力、资源工具不能提供完整文件／字体字节，或执行环境读不到已取得的目录时，停止导出，保留已有源稿并报告具体缺少的能力或资源。先指出缺项，再按已有授权处理安装／更新；不要把包资源缺失当成系统依赖缺失，也不把手写替代管线的成品称为 Recto 导出。
+平台没有脚本执行能力，或以上途径仍无法在执行环境取得可核验的包时，保留源稿，明确标注 PDF 待导出。指出失败的资源相对路径或命令、实际错误，以及恢复需要的文件或能力。若执行环境可运行命令但无法联网，先用 `pandoc --version` 核对下方的版本要求，需要 PDF 时也检查 `latexmk` 和 `lualatex`。一次列出已知的离线补件，包到位后仍须运行 doctor，再从现有源稿继续。
 
 ## 检查
 
@@ -25,7 +26,7 @@
 ## 安装缺项
 
 1. **Python**：有 Codex 捆绑运行时就复用。没有可用 Python 时，使用现有系统包管理器安装 Python 3.10+；没有包管理器时，按 [Python 官方安装说明](https://www.python.org/downloads/) 完成后继续。
-2. **Pandoc**：要求 ≥3.9。macOS 已有 Homebrew 时仅安装缺少的 `pandoc`，过旧的使用 `brew upgrade`。其他系统按 [Pandoc 安装说明](https://pandoc.org/installing.html)安装官方版本，并让当前进程的 PATH 包含其目录。
+2. **Pandoc**：要求 ≥3.9。macOS 已有 Homebrew 时仅安装缺少的 `pandoc`，过旧的使用 `brew upgrade`。其他系统按 [Pandoc 安装说明](https://pandoc.org/installing.html)取得官方版本。云端系统版本过旧、无法全局安装时，可将适配当前平台的官方二进制解到本轮工作目录，把其目录放在 doctor、导出及复验进程的 PATH 首位，重跑 doctor 确认实际版本。
 3. **TeX / latexmk**：PDF 需要 LuaLaTeX（建议 TeX Live 2024+）和 `latexmk`。优先用已安装的 TeX Live/MacTeX 管理器安装 `latexmk` 及缺失宏包；`latexmk` 依赖 Perl，macOS/Unix 通常已具备，Windows 通常随 Strawberry Perl 提供。TeX Live 的非重定位安装不能用 `tlmgr --usermode` 安装 `latexmk`。安装后确认 `lualatex`、`latexmk`、`kpsewhich` 都在 PATH。
 4. **TeX 包**：需要 `ctex luatexja lualatex-math fontspec unicode-math titlesec caption needspace eso-pic float tools booktabs graphics geometry hyperref xcolor fancyvrb fvextra framed bookmark footnotehyper etoolbox microtype lm`。`fvextra` 要求 ≥1.5（2022-11-30），负责代码长行换行，`framed` 提供可跨页的浅底代码块；不需要 Python 高亮器或 shell escape。doctor 用 `kpsewhich` 逐项探测；安装报告中的具体缺项后重跑同一 doctor 命令。只有 LaTeX 格式与宏包版本不匹配时才重建对应格式（例如 `fmtutil-user --byfmt lualatex`）；字体缓存问题另按 luaotfload 诊断处理，不作为例行操作。
 5. **Python 包**：若现有运行时缺少 `python-docx` 或 `lxml`，新建专属虚拟环境，随后一直用其 Python 检查和导出，不修改 Codex 的捆绑运行时。macOS／Linux 示例：
