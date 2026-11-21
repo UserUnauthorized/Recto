@@ -127,7 +127,7 @@ def check(style, formats=('tex', 'pdf'), bundled_fonts=False):
             importlib.import_module(module)
         except (ImportError, OSError) as error:
             issues.append(f'Python dependency {module}: {error}')
-    version, error = command_version('pandoc', (3, 9))
+    version, error = command_version('pandoc', (3, 9) if 'docx' in formats else (3, 1, 11, 1))
     if error:
         issues.append(error)
     else:

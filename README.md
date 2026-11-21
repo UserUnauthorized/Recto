@@ -110,7 +110,7 @@ Web 端先复用当前包的挂载目录或完整资源。如果字体只能预�
 python skills/recto/scripts/doctor.py --style reference --formats tex,pdf,docx
 ```
 
-需要 Python 3.10+、Pandoc ≥3.9、LuaLaTeX（建议 TeX Live 2024+）、`latexmk`、`python-docx` 和 `lxml`。PDF 还需要 doctor 列出的 TeX 宏包；TeX 和 Word 导出不要求 `latexmk`。仅有 SVG 输入时额外需要 `rsvg-convert`（librsvg），PNG/JPEG/PDF 输入不需要。缺包时在专属虚拟环境安装 Python 依赖，不修改系统或 Codex 捆绑的 Python。完整步骤见[依赖检查与安装](skills/recto/references/setup.md)。手动导出可在已激活的虚拟环境中运行 `python -m pip install -r skills/recto/requirements.txt`。
+需要 Python 3.10+、Pandoc（TeX/PDF ≥3.1.11.1，DOCX ≥3.9）、LuaLaTeX（建议 TeX Live 2024+）、`latexmk`、`python-docx` 和 `lxml`。PDF 还需要 doctor 列出的 TeX 宏包；TeX 和 Word 导出不要求 `latexmk`。仅有 SVG 输入时额外需要 `rsvg-convert`（librsvg），PNG/JPEG/PDF 输入不需要。缺包时在专属虚拟环境安装 Python 依赖，不修改系统或 Codex 捆绑的 Python。完整步骤见[依赖检查与安装](skills/recto/references/setup.md)。手动导出可在已激活的虚拟环境中运行 `python -m pip install -r skills/recto/requirements.txt`。
 
 | 用途 | 本地原字体优先 | 缺少时随包提供 |
 |---|---|---|

@@ -8,13 +8,33 @@ import subprocess
 import sys
 import unittest
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'skills/recto/scripts'))
-from doctor import FONT_DIR, select_fonts
+from doctor import FONT_DIR, check, select_fonts
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_web_pandoc_version_is_accepted_for_tex(self):
+        with TemporaryDirectory() as directory, patch.dict(os.environ, PATH=directory):
+            converter = Path(directory) / 'pandoc'
+            converter.write_text(f'#!{sys.executable}\nprint("pandoc 3.1.11.1")\n')
+            converter.chmod(0o755)
+            self.assertTrue(check('reference', ['tex'], bundled_fonts=True)['ready'])
+            word = check('reference', ['docx'], bundled_fonts=True)
+            self.assertIn('pandoc >=3.9 required; found 3.1.11.1', word['issues'])
+
+    def test_pandoc_writer_options_preserve_requested_table_layout(self):
+        from export import writer_options
+        theme = str(ROOT / 'skills/recto/assets/styles/code.theme')
+
+        self.assertEqual(writer_options('--highlight-style=STYLE', False), ['--highlight-style', theme])
+        with self.assertRaisesRegex(ValueError, 'table-caption-position'):
+            writer_options('--highlight-style=STYLE', True)
+        self.assertEqual(writer_options('--syntax-highlighting=STYLE --table-caption-position=below', True),
+                         ['--table-caption-position=below', '--syntax-highlighting', theme])
+
     def test_missing_tools_returns_actionable_report(self):
         result = subprocess.run([sys.executable, str(ROOT / 'skills/recto/scripts/doctor.py')],
                                 env=dict(os.environ, PATH=''), capture_output=True, text=True)

@@ -26,7 +26,7 @@
 ## 安装缺项
 
 1. **Python**：有 Codex 捆绑运行时就复用。没有可用 Python 时，使用现有系统包管理器安装 Python 3.10+；没有包管理器时，按 [Python 官方安装说明](https://www.python.org/downloads/) 完成后继续。
-2. **Pandoc**：要求 ≥3.9。macOS 已有 Homebrew 时仅安装缺少的 `pandoc`，过旧的使用 `brew upgrade`。其他系统按 [Pandoc 安装说明](https://pandoc.org/installing.html)取得官方版本。云端系统版本过旧、无法全局安装时，可将适配当前平台的官方二进制解到本轮工作目录，把其目录放在 doctor、导出及复验进程的 PATH 首位，重跑 doctor 确认实际版本。
+2. **Pandoc**：PDF 和 TeX 先用系统版本（最低 3.1.11.1），直接运行同一导出器。它从本机帮助信息选择代码高亮参数。若 reference 稿含表题，必须能把表题置于表下；缺少 `--table-caption-position` 时导出器会指出这项限制。GB/T 的 LaTeX 模板自行处理表题。旧版 Pandoc 的 LuaLaTeX 模板可能需要 TeX 宏包 `selnolig`，缺它时补该宏包即可。只在缺少可用 Pandoc、实际文稿需要系统版本不提供的功能、或 DOCX 所需的 3.9 尚未满足时，按 [Pandoc 安装说明](https://pandoc.org/installing.html)选择可用版本。
 3. **TeX / latexmk**：PDF 需要 LuaLaTeX（建议 TeX Live 2024+）和 `latexmk`。优先用已安装的 TeX Live/MacTeX 管理器安装 `latexmk` 及缺失宏包；`latexmk` 依赖 Perl，macOS/Unix 通常已具备，Windows 通常随 Strawberry Perl 提供。TeX Live 的非重定位安装不能用 `tlmgr --usermode` 安装 `latexmk`。安装后确认 `lualatex`、`latexmk`、`kpsewhich` 都在 PATH。
 4. **TeX 包**：需要 `ctex luatexja lualatex-math fontspec unicode-math titlesec caption needspace eso-pic float tools booktabs graphics geometry hyperref xcolor fancyvrb fvextra framed bookmark footnotehyper etoolbox microtype lm`。`fvextra` 要求 ≥1.5（2022-11-30），负责代码长行换行，`framed` 提供可跨页的浅底代码块；不需要 Python 高亮器或 shell escape。doctor 用 `kpsewhich` 逐项探测；安装报告中的具体缺项后重跑同一 doctor 命令。只有 LaTeX 格式与宏包版本不匹配时才重建对应格式（例如 `fmtutil-user --byfmt lualatex`）；字体缓存问题另按 luaotfload 诊断处理，不作为例行操作。
 5. **Python 包**：若现有运行时缺少 `python-docx` 或 `lxml`，新建专属虚拟环境，随后一直用其 Python 检查和导出，不修改 Codex 的捆绑运行时。macOS／Linux 示例：
