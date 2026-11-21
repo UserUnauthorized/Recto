@@ -2,7 +2,7 @@
 """Export one semantic Markdown source to Recto LaTeX/PDF/editable Word.
 
 Run doctor.py first; references/setup.md handles missing dependencies separately.
-Pandoc >=3.9 and LuaLaTeX are external executables. Export runs offline.
+Pandoc and LuaLaTeX are external executables. Export runs offline.
 """
 from __future__ import annotations
 
@@ -55,6 +55,17 @@ def run(args, **kwargs):
         details=error or (result.stdout.decode(errors='replace') if isinstance(result.stdout,bytes) else result.stdout)
         raise RuntimeError(f'{args[0]} failed or reported diagnostics:\n{details}')
     return result.stdout
+
+
+def writer_options(help_text, needs_bottom_caption):
+    options = []
+    if '--table-caption-position' in help_text:
+        options.append('--table-caption-position=below')
+    elif needs_bottom_caption:
+        raise ValueError('This table needs a caption below it. Use a Pandoc with '
+                         '--table-caption-position to preserve the requested layout.')
+    flag = '--syntax-highlighting' if '--syntax-highlighting' in help_text else '--highlight-style'
+    return [*options, flag, str(ROOT / 'assets/styles/code.theme')]
 
 
 def elem(name, **attrs):
@@ -454,8 +465,11 @@ def main():
             if image!=dest: shutil.copy2(image,dest)
             node['c'][2][0]=str(dest.relative_to(out))
     env=dict(os.environ,RECTO_STYLE=args.style)
-    common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),'--table-caption-position=below',
-            '--syntax-highlighting',str(ROOT/'assets/styles/code.theme')]
+    # The GB/T LaTeX filter places its own captions. Other writers use Pandoc's placement.
+    needs_bottom_caption = (args.style == 'reference' or 'docx' in formats) and any(
+        node.get('t') == 'Table' and any(node['c'][1]) for node in walk(ast))
+    common=['pandoc','-f','json','--lua-filter',str(ROOT/'scripts/blocks.lua'),'--resource-path',str(out),
+            *writer_options(run(['pandoc', '--help']).decode(), needs_bottom_caption)]
     outputs=[]
     if formats & {'tex','pdf'}:
         latex_ast=deepcopy(ast)

@@ -1,6 +1,6 @@
 # 共用源文件与导出
 
-导出器使用 Pandoc ≥3.9、LuaLaTeX 与 `latexmk`；建议 TeX Live 2024 或更新版本。Python 需要 `python-docx` 和 `lxml`；优先使用工作区依赖加载器返回的运行时。缺项时先走[依赖检查与安装](setup.md)。导出离线执行；渲染 DOCX 优先使用捆绑的 LibreOffice。
+导出器使用 系统 Pandoc（TeX/PDF ≥3.1.11.1，DOCX ≥3.9）、LuaLaTeX 与 `latexmk`；建议 TeX Live 2024 或更新版本。Python 需要 `python-docx` 和 `lxml`；优先使用工作区依赖加载器返回的运行时。缺项时先走[依赖检查与安装](setup.md)。导出离线执行；渲染 DOCX 优先使用捆绑的 LibreOffice。
 
 ## 输入
 
