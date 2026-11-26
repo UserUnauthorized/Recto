@@ -102,7 +102,7 @@ python scripts/skills.py install recto --dest "$HOME/.agents/skills" --replace
 
 ## 依赖与随包字体
 
-Web 端先复用当前包的挂载目录或完整资源。如果字体只能预览，可用宿主的同包归档恢复。已确认官方来源和版本时，也可使用对应 Release 的 `recto-skill.zip` 与 `SHA256SUMS`；执行环境无法下载时可将两者作为附件提供。普通讲义在正式资源仍不可用时，会用 XeLaTeX 交付兼容 PDF。执行环境不能编译或你希望自己编译时，会交付填好正文、带齐配图的源工程。可直接取用[轻量 TeX 模板](skills/recto/assets/examples/portable-handout.tex)，编译命令及版式要求的处理见[降级交付](skills/recto/references/pdf-fallback.md)。
+Web 端已挂载完整插件时按正式版导出。若沙箱只能读技能文本，普通讲义会直接用插件内嵌的 TeX 模板和沙箱现有字体编译，无需给项目上传 ZIP。需要 XeLaTeX、模板用到的 TeX 宏包，以及覆盖正文字形的字体；无法编译时交付带齐配图的源工程。模板和编译命令见[沙箱文本模板](skills/recto/references/pdf-fallback.md#沙箱文本模板)，要求原字体或严格版式时见[正式运行目录](skills/recto/references/setup.md#准备运行目录)。
 
 排版前自动走**检查 → 只安装缺项 → 复查 → 继续原任务**。优先复用 Codex 桌面的捆绑 Python；没有桌面工具也能使用普通 Python。资源取得与依赖安装完成后，实际导出离线运行。检查脚本不安装、不联网：
 

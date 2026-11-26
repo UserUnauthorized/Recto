@@ -14,6 +14,29 @@ EXPORT = ROOT / 'skills/recto/scripts/export.py'
 
 
 class TemplateTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX unavailable for the text-only PDF test")
+    def test_web_pdf_compiles_with_only_the_template_text(self):
+        guide = (ROOT / "skills/recto/references/pdf-fallback.md").read_text()
+        _, opening, rest = guide.partition("```tex\n")
+        template, closing, _ = rest.partition("\n```")
+        self.assertTrue(opening and closing, "The Markdown resource must contain the complete TeX template")
+        preamble, begin, _ = template.partition(r"\begin{document}")
+        self.assertIn(r"\end{document}", template)
+        manuscript = preamble + begin + "\n" + r"系统字体 $\int_0^1 x\,dx=1/2$。\end{document}"
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary)
+            (work / "main.tex").write_text(manuscript, encoding="utf-8")
+            compile_pdf = subprocess.run(
+                ["xelatex", "-recorder", "-no-shell-escape", "-interaction=nonstopmode",
+                 "-halt-on-error", "main.tex"],
+                cwd=work, capture_output=True, text=True, timeout=60,
+            )
+            self.assertEqual(compile_pdf.returncode, 0, compile_pdf.stdout[-2500:])
+            self.assertNotIn("Missing character:", (work / "main.log").read_text())
+            self.assertNotIn(str(ROOT / "skills"), (work / "main.fls").read_text())
+            text = subprocess.check_output(["pdftotext", "main.pdf", "-"], cwd=work, text=True)
+            self.assertIn("系统字体", "".join(text.split()))
+
     def test_user_templates_cannot_override_official_styles(self):
         overrides = '\\geometry{left=50mm,right=50mm}\n\\setmathfont{Latin Modern Math}\n'
         with tempfile.TemporaryDirectory() as temporary:
