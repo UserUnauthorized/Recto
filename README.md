@@ -102,7 +102,7 @@ python scripts/skills.py install recto --dest "$HOME/.agents/skills" --replace
 
 ## 依赖与随包字体
 
-Web 端先复用当前包的挂载目录或完整资源。如果字体只能预览，可用宿主的同包归档恢复。已确认官方来源和版本时，也可使用对应 Release 的 `recto-skill.zip` 与 `SHA256SUMS`；执行环境无法下载时可将两者作为附件提供。完整步骤见[准备运行目录](skills/recto/references/setup.md#准备运行目录)。
+Web 端先复用当前包的挂载目录或完整资源。如果字体只能预览，可用宿主的同包归档恢复。已确认官方来源和版本时，也可使用对应 Release 的 `recto-skill.zip` 与 `SHA256SUMS`；执行环境无法下载时可将两者作为附件提供。普通讲义在正式资源仍不可用时，会用 XeLaTeX 交付兼容 PDF。执行环境不能编译或你希望自己编译时，会交付填好正文、带齐配图的源工程。可直接取用[轻量 TeX 模板](skills/recto/assets/examples/portable-handout.tex)，编译命令及版式要求的处理见[降级交付](skills/recto/references/pdf-fallback.md)。
 
 排版前自动走**检查 → 只安装缺项 → 复查 → 继续原任务**。优先复用 Codex 桌面的捆绑 Python；没有桌面工具也能使用普通 Python。资源取得与依赖安装完成后，实际导出离线运行。检查脚本不安装、不联网：
 
@@ -213,7 +213,7 @@ python skills/recto/scripts/export.py skills/recto/assets/examples/gbt9704.md \
 | `content.md`、`media/` | 唯一交付正文源与所需图片；无图片时没有 `media/`，LaTeX 共用此目录 |
 | `latex/fonts/` | 本次选用的开源字体族与许可证；不复制整套字库或系统专有字体 |
 
-这些是导出器的固定内部名称。本地目录交付与网页单文件下载使用不同的外层路径和下载名，见[输出路径与下载名](skills/recto/references/export.md#输出路径与下载名)；独立下载的 PDF、Word 使用有意义的文档名。资源目录统一使用 `media/`、`latex/` 等英文名。只有用户要求时才另做压缩包。导出报告只输出到终端；预览、QA 和日志保存在交付目录以外，验收后清理本轮中间文件。从交付根目录运行 `latex/document.tex` 顶部注释中的 `latexmk` 命令；`latexmk` 自行创建 `build/` 并处理所需编译轮次。
+这些是导出器的固定内部名称。本地目录交付与网页单文件下载使用不同的外层路径和下载名，见[输出路径与下载名](skills/recto/references/export.md#输出路径与下载名)；独立下载的 PDF、Word 使用有意义的文档名。资源目录统一使用 `media/`、`latex/` 等英文名。正式目录默认原样交付；本机编译降级所需的多文件源码可合为一个下载包。导出报告只输出到终端；预览、QA 和日志保存在交付目录以外，验收后清理本轮中间文件。从交付根目录运行 `latex/document.tex` 顶部注释中的 `latexmk` 命令；`latexmk` 自行创建 `build/` 并处理所需编译轮次。
 
 三种输出共用 Markdown 源，不从 PDF 反转生成 Word。Word 由 Pandoc 独立转换为 OMML，不需要 TeX；其换行、分页和数学字体可能与 PDF 不同。国标横表在 PDF 中旋转排入纵向纸张，在 Word 中使用横向节。编译后仍需逐页检查。历史 DOCX 样张曾在 Word for Mac 16.114.4 打开核对；这不代表每次新导出已自动完成 Word 验收。国标风格只覆盖正文相关版式，不是完整机关公文认证。
 

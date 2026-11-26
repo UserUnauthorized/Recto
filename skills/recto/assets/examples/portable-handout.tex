@@ -1,0 +1,32 @@
+% !TeX program = xelatex
+% Save as main.tex (UTF-8). From its directory run:
+% xelatex -no-shell-escape -halt-on-error main.tex
+% Repeat if the log requests another pass for references or bookmarks.
+\documentclass[a4paper,11pt]{article}
+\usepackage[margin=24mm]{geometry}
+\usepackage{xeCJK}
+\IfFontExistsTF{Noto Serif CJK SC}
+  {\setCJKmainfont{Noto Serif CJK SC}}
+  {\IfFontExistsTF{FandolSong-Regular.otf}
+     {\setCJKmainfont[BoldFont=FandolSong-Bold.otf]{FandolSong-Regular.otf}}
+     {\setCJKmainfont{Songti SC}}}
+\usepackage{amsmath,amssymb,graphicx,booktabs,longtable}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+
+\begin{document}
+% Replace the entire example below with the actual manuscript.
+\section*{积分区域与积分次序}
+设 $D=\{(x,y)\mid 0\le y\le x\le 1\}$，求
+\(\displaystyle\iint_D (x+y)\,\mathrm{d}A\)。
+
+固定 $x$ 时，$y$ 从 $0$ 变到 $x$。先对 $y$ 积分，得到
+\[
+  \int_0^1\!\int_0^x (x+y)\,\mathrm{d}y\,\mathrm{d}x
+  = \int_0^1 \left(x^2+\tfrac12 x^2\right)\mathrm{d}x
+  = \tfrac12 .
+\]
+% Place illustrations next to main.tex under media/, e.g.
+% \includegraphics[width=.65\linewidth]{media/region.png}
+\end{document}
